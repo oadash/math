@@ -1,5 +1,5 @@
 /** Bump when you need to verify Railway serves the latest commit. */
-export const API_REVISION = 'deploy-info-1'
+export const API_REVISION = 'deploy-info-2'
 
 export function getDeployInfo() {
   return {

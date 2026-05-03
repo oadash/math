@@ -6,7 +6,7 @@ import pg from 'pg'
 import { migrate } from './db/migrate.js'
 import { getDatabaseUrl, getDatabaseUrlHints } from './db/databaseUrl.js'
 import { poolOptionsForUrl } from './db/poolConfig.js'
-import { getDeployInfo } from './deployInfo.js'
+import { API_REVISION, getDeployInfo } from './deployInfo.js'
 
 const { Pool } = pg
 
@@ -24,6 +24,15 @@ const pool = databaseUrl ? new Pool(poolOptionsForUrl(databaseUrl)) : null
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3000
+
+app.use((req, res, next) => {
+  res.setHeader('X-API-Revision', API_REVISION)
+  if (req.path === '/health' || req.path.startsWith('/health/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+  }
+  next()
+})
 
 app.use(
   cors({
@@ -87,6 +96,7 @@ function start() {
   // Bind port before migrate so Railway health checks don’t SIGTERM a slow/hung DB connect.
   app.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}`)
+    console.log(`[deploy] API_REVISION=${API_REVISION} RAILWAY_GIT_COMMIT_SHA=${process.env.RAILWAY_GIT_COMMIT_SHA ?? 'n/a'}`)
     void runMigrateAfterListen()
   })
 }
