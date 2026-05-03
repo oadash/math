@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser'
 import pg from 'pg'
 import { migrate } from './db/migrate.js'
 import { getDatabaseUrl, getDatabaseUrlHints } from './db/databaseUrl.js'
+import { poolOptionsForUrl } from './db/poolConfig.js'
 
 const { Pool } = pg
 
@@ -18,17 +19,7 @@ if (!databaseUrl) {
   console.log('[db] Database URL is set')
 }
 
-const pool = databaseUrl
-  ? new Pool({
-      connectionString: databaseUrl,
-      max: 10,
-      connectionTimeoutMillis: 15_000,
-      ssl:
-        process.env.PGSSLMODE === 'require' || process.env.NODE_ENV === 'production'
-          ? { rejectUnauthorized: false }
-          : undefined,
-    })
-  : null
+const pool = databaseUrl ? new Pool(poolOptionsForUrl(databaseUrl)) : null
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3000
@@ -46,21 +37,41 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'math-adventure-api' })
 })
 
+app.get('/', (_req, res) => {
+  res.type('text/plain').send('Math Adventure API — /health /health/db')
+})
+
 app.get('/health/db', async (_req, res) => {
   if (!pool) {
     return res.status(503).json({
       ok: false,
       db: 'DATABASE_URL not set',
       hints: getDatabaseUrlHints(),
-      fix: 'Railway: open Postgres → Connect → link to this service, or set DATABASE_URL via Variable Reference from Postgres. Redeploy after saving.',
+      fix: 'Railway: Postgres service → Connect → выбери этот Node-сервис, чтобы подставился DATABASE_URL. Redeploy.',
     })
   }
   try {
     await pool.query('SELECT 1')
-    return res.json({ ok: true, db: 'up' })
+    let topics = null
+    try {
+      const r = await pool.query('SELECT count(*)::int AS n FROM topics')
+      topics = r.rows[0]?.n ?? null
+    } catch (e) {
+      if (e.code !== '42P01') throw e
+    }
+    return res.json({
+      ok: true,
+      db: 'up',
+      topics,
+    })
   } catch (err) {
     console.error(err)
-    return res.status(503).json({ ok: false, db: 'error' })
+    return res.status(503).json({
+      ok: false,
+      db: 'error',
+      code: err.code,
+      message: err.message,
+    })
   }
 })
 

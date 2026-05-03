@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import 'dotenv/config'
 import pg from 'pg'
 import { getDatabaseUrl } from './databaseUrl.js'
+import { poolOptionsForUrl } from './poolConfig.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -37,13 +38,7 @@ async function runCli() {
     console.error('migrate: DATABASE_URL (or POSTGRES_URL) is not set')
     process.exit(1)
   }
-  const pool = new pg.Pool({
-    connectionString: url,
-    ssl:
-      process.env.PGSSLMODE === 'require' || process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: false }
-        : undefined,
-  })
+  const pool = new pg.Pool(poolOptionsForUrl(url))
   try {
     await migrate(pool)
   } finally {
