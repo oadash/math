@@ -190,14 +190,9 @@ export function renderLandingPage(lang) {
   }
 </script>`
 
-  const browserLangRedirectScript =
-    lang === 'ru'
-      ? `<script>
-  if (navigator.language?.startsWith('en') && window.location.pathname === '/') {
-    window.location.replace('/en/');
-  }
-</script>`
-      : ''
+  const browserLangRedirectScript = lang === 'ru'
+    ? `<script>(function(){if(window.location.pathname!=='/'){return;}if((navigator.language||'').toLowerCase().startsWith('en')){window.location.replace('/en/');}})();</script>`
+    : ''
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
