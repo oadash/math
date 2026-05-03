@@ -167,11 +167,11 @@ export function renderLandingPage(lang) {
   const pageDesc = meta.landing_meta_description
 
   const langSwitchHtml = isEn
-    ? `<p class="lang-switch"><a href="/">${escapeHtml(meta.landing_lang_label)}</a></p>`
+    ? `<p class="lang-switch"><a href="/?lang=ru">${escapeHtml(meta.landing_lang_label)}</a></p>`
     : `<p class="lang-switch"><a href="/en/">${escapeHtml(meta.landing_lang_label)}</a></p>`
 
   const topicsPath = isEn ? '/en/topics' : '/topics'
-  const footerAltPath = isEn ? '/' : '/en/'
+  const footerAltPath = isEn ? '/?lang=ru' : '/en/'
 
   const ld = {
     '@context': 'https://schema.org',
@@ -191,7 +191,7 @@ export function renderLandingPage(lang) {
 </script>`
 
   const browserLangRedirectScript = lang === 'ru'
-    ? `<script>(function(){if(window.location.pathname!=='/'){return;}if((navigator.language||'').toLowerCase().startsWith('en')){window.location.replace('/en/');}})();</script>`
+    ? `<script>(function(){if(window.location.pathname!=='/'){return;}if(new URLSearchParams(window.location.search).get('lang')==='ru'){return;}if((navigator.language||'').toLowerCase().startsWith('en')){window.location.replace('/en/');}})();</script>`
     : ''
 
   return `<!DOCTYPE html>
