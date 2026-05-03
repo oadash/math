@@ -6,6 +6,7 @@ import pg from 'pg'
 import { migrate } from './db/migrate.js'
 import { getDatabaseUrl, getDatabaseUrlHints } from './db/databaseUrl.js'
 import { poolOptionsForUrl } from './db/poolConfig.js'
+import { getDeployInfo } from './deployInfo.js'
 
 const { Pool } = pg
 
@@ -34,7 +35,11 @@ app.use(express.json())
 app.use(cookieParser())
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'math-adventure-api' })
+  res.json({
+    ok: true,
+    service: 'math-adventure-api',
+    deploy: getDeployInfo(),
+  })
 })
 
 app.get('/', (_req, res) => {
@@ -48,6 +53,7 @@ app.get('/health/db', async (_req, res) => {
       db: 'DATABASE_URL not set',
       hints: getDatabaseUrlHints(),
       fix: 'Railway: Postgres service → Connect → выбери этот Node-сервис, чтобы подставился DATABASE_URL. Redeploy.',
+      deploy: getDeployInfo(),
     })
   }
   try {
@@ -63,6 +69,7 @@ app.get('/health/db', async (_req, res) => {
       ok: true,
       db: 'up',
       topics,
+      deploy: getDeployInfo(),
     })
   } catch (err) {
     console.error(err)
@@ -71,6 +78,7 @@ app.get('/health/db', async (_req, res) => {
       db: 'error',
       code: err.code,
       message: err.message,
+      deploy: getDeployInfo(),
     })
   }
 })
