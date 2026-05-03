@@ -1,0 +1,15 @@
+{
+  "name": "math-adventure",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=client",
+    "start": "npm run start --workspace=server"
+  }
+}
