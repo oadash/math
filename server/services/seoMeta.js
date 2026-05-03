@@ -27,7 +27,6 @@ export const SEO_META = {
     landing_lang_label: 'English',
     landing_footer_topics: 'Все темы',
     landing_footer_ru: 'Русская версия',
-    landing_footer_sitemap: 'Карта сайта',
   },
   en: {
     site_name: 'Train Math',
@@ -57,7 +56,6 @@ export const SEO_META = {
     landing_lang_label: 'Русский',
     landing_footer_topics: 'All topics',
     landing_footer_ru: 'Russian version',
-    landing_footer_sitemap: 'Sitemap',
   },
 }
 
@@ -192,6 +190,20 @@ export function renderLandingPage(lang) {
   }
 </script>`
 
+  const browserLangRedirectScript =
+    lang === 'ru'
+      ? `<script>
+(function () {
+  var path = window.location.pathname;
+  if (path !== '/') return;
+  var navLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+  if (navLang.startsWith('en')) {
+    window.location.replace('/en/');
+  }
+})();
+</script>`
+      : ''
+
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -212,6 +224,7 @@ export function renderLandingPage(lang) {
     ${LANDING_EXTRA_STYLES}
   </style>
   ${jwtRedirectScript}
+  ${browserLangRedirectScript}
 </head>
 <body>
   ${langSwitchHtml}
@@ -232,7 +245,6 @@ export function renderLandingPage(lang) {
   <nav class="footer-nav" aria-label="${escapeHtml(isEn ? 'Site' : 'Сайт')}">
     <a href="${topicsPath}">${escapeHtml(meta.landing_footer_topics)}</a>
     <a href="${footerAltPath}">${escapeHtml(meta.landing_footer_ru)}</a>
-    <a href="/sitemap.xml">${escapeHtml(meta.landing_footer_sitemap)}</a>
   </nav>
 </body>
 </html>`
