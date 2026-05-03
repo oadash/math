@@ -116,6 +116,8 @@ export function createApp(opts) {
         req.path.startsWith('/api') ||
         req.path.startsWith('/health') ||
         req.path.startsWith('/debug') ||
+        req.path === '/topics' ||
+        req.path === '/en/topics' ||
         req.path.startsWith('/practice') ||
         req.path.startsWith('/en/practice') ||
         req.path === '/sitemap.xml' ||

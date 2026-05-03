@@ -9,6 +9,11 @@ export const SEO_META = {
     examples_heading: 'Примеры задач',
     cta: 'Начать тренировку →',
     grade_label: 'Класс:',
+    topics_page_title: 'Все темы',
+    topics_page_desc:
+      'Каталог тем математического тренажёра по классам. Выбери тему или открой приложение. Бесплатно, без рекламы.',
+    topics_page_cta: 'Открыть приложение →',
+    topics_group_heading: (g) => `${g} класс`,
   },
   en: {
     site_name: 'Train Math',
@@ -20,6 +25,11 @@ export const SEO_META = {
     examples_heading: 'Example problems',
     cta: 'Start practicing →',
     grade_label: 'Grade:',
+    topics_page_title: 'All topics',
+    topics_page_desc:
+      'Math trainer topics by grade. Pick a topic or open the app. Free, no ads.',
+    topics_page_cta: 'Open the app →',
+    topics_group_heading: (g) => `Grade ${g}`,
   },
 }
 
@@ -83,6 +93,100 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
+/** Общие стили с страницами practice (серверный HTML). */
+const SEO_LAYOUT_STYLES = `body { font-family: system-ui, sans-serif; max-width: 640px; margin: 0 auto;
+       padding: 1.5rem; color: #1a1a2e; background: #f4f7fb; }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .desc { color: #555; margin-bottom: 1.5rem; }
+    .examples { background: #fff; border-radius: 1rem; padding: 1.25rem;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 1.5rem; }
+    .examples h2 { font-size: 1rem; margin: 1.25rem 0 0.75rem; color: #555; }
+    .examples h2:first-child { margin-top: 0; }
+    .topic-list { list-style: none; padding: 0; margin: 0; }
+    .topic-list li { padding: 0.35rem 0; border-bottom: 1px solid #f0f0f0; }
+    .topic-list li:last-child { border-bottom: none; }
+    .topic-list a { color: #6c5ce7; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+    .topic-list a:hover { text-decoration: underline; }
+    .cta { display: block; background: #6c5ce7; color: #fff; text-decoration: none;
+           padding: 1rem 1.5rem; border-radius: 1rem; text-align: center;
+           font-size: 1.15rem; font-weight: 800; }`
+
+/**
+ * @param {Array<{ slug: string, title_ru: string, title_en?: string | null, sort_order: number }>} topics
+ * @param {'ru'|'en'} lang
+ */
+export function renderTopicsPage(topics, lang) {
+  const meta = SEO_META[lang]
+  const base = 'https://trainmath.fyi'
+  const canonicalLang = lang === 'en' ? '/en' : ''
+  const altHrefLang = lang === 'en' ? 'ru' : 'en'
+  const altLangPath = lang === 'en' ? '' : '/en'
+
+  const pageTitle = meta.topics_page_title
+  const pageDesc = meta.topics_page_desc
+
+  const byGrade = new Map()
+  for (const t of topics) {
+    const g = SLUG_TO_GRADE[t.slug] ?? 0
+    if (!byGrade.has(g)) byGrade.set(g, [])
+    byGrade.get(g).push(t)
+  }
+  for (const [, list] of byGrade) {
+    list.sort((a, b) => a.sort_order - b.sort_order)
+  }
+  const grades = [...byGrade.keys()].filter((g) => g > 0).sort((a, b) => a - b)
+  if (byGrade.has(0) && byGrade.get(0).length) {
+    grades.push(0)
+  }
+
+  const practicePrefix = lang === 'en' ? '/en/practice/' : '/practice/'
+
+  const sectionsHtml = grades
+    .map((g) => {
+      const list = byGrade.get(g) ?? []
+      const heading =
+        g === 0 ? (lang === 'en' ? 'Other' : 'Другое') : meta.topics_group_heading(g)
+      const links = list
+        .map((t) => {
+          const label = lang === 'en' ? (t.title_en ?? t.title_ru) : t.title_ru
+          const urlSlug = t.slug.replace(/_/g, '-')
+          return `<li><a href="${base}${practicePrefix}${urlSlug}">${escapeHtml(label)}</a></li>`
+        })
+        .join('')
+      return `<h2>${escapeHtml(heading)}</h2><ul class="topic-list">${links}</ul>`
+    })
+    .join('')
+
+  return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(pageTitle)} — ${escapeHtml(meta.site_name)}</title>
+  <meta name="description" content="${escapeHtml(pageDesc)}">
+  <link rel="canonical" href="${base}${canonicalLang}/topics">
+  <link rel="alternate" hreflang="${altHrefLang}"
+        href="${base}${altLangPath}/topics">
+  <link rel="alternate" hreflang="${lang}"
+        href="${base}${canonicalLang}/topics">
+  <meta property="og:title" content="${escapeHtml(pageTitle)}">
+  <meta property="og:description" content="${escapeHtml(pageDesc)}">
+  <meta property="og:type" content="website">
+  <style>
+    ${SEO_LAYOUT_STYLES}
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(pageTitle)}</h1>
+  <p class="desc">${escapeHtml(pageDesc)}</p>
+  <div class="examples">
+    ${sectionsHtml}
+  </div>
+  <a href="/" class="cta">${escapeHtml(meta.topics_page_cta)}</a>
+</body>
+</html>`
+}
+
 export function renderPracticePage(topic, lang, generateRu, generateEn) {
   const meta = SEO_META[lang]
   const grade = SLUG_TO_GRADE[topic.slug] ?? null
@@ -134,22 +238,13 @@ export function renderPracticePage(topic, lang, generateRu, generateEn) {
   <meta property="og:type" content="website">
   <script type="application/ld+json">${JSON.stringify(ld)}</script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 0 auto;
-           padding: 1.5rem; color: #1a1a2e; background: #f4f7fb; }
-    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
-    .desc { color: #555; margin-bottom: 1.5rem; }
+    ${SEO_LAYOUT_STYLES}
     .grade { display: inline-block; background: #e8e4ff; color: #6c5ce7;
              padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.85rem;
              font-weight: 700; margin-bottom: 1rem; }
-    .examples { background: #fff; border-radius: 1rem; padding: 1.25rem;
-                box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 1.5rem; }
-    .examples h2 { font-size: 1rem; margin: 0 0 0.75rem; color: #555; }
     .example { font-size: 1.35rem; font-weight: 700; padding: 0.5rem 0;
                border-bottom: 1px solid #f0f0f0; }
     .example:last-child { border-bottom: none; }
-    .cta { display: block; background: #6c5ce7; color: #fff; text-decoration: none;
-           padding: 1rem 1.5rem; border-radius: 1rem; text-align: center;
-           font-size: 1.15rem; font-weight: 800; }
   </style>
 </head>
 <body>

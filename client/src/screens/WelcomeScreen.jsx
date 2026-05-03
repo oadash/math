@@ -1,10 +1,20 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api, friendlyApiMessage, getToken, setToken, restoreByCode } from '../api.js'
-import { useT } from '../i18n/useT.js'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import {
+  api,
+  friendlyApiMessage,
+  getToken,
+  setToken,
+  restoreByCode,
+  pinTopic,
+} from '../api.js'
+import { useLang, useT } from '../i18n/useT.js'
 
 export default function WelcomeScreen() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const topicSlugRef = useRef(new URLSearchParams(location.search).get('topic'))
+  const { lang, setLang } = useLang()
   const t = useT()
   const [name, setName] = useState('')
   const [age, setAge] = useState('8')
@@ -17,8 +27,24 @@ export default function WelcomeScreen() {
   const [myCode, setMyCode] = useState('')
 
   useEffect(() => {
+    topicSlugRef.current = new URLSearchParams(location.search).get('topic')
+  }, [location.search])
+
+  useEffect(() => {
     if (getToken()) navigate('/play', { replace: true })
   }, [navigate])
+
+  async function goToPlayWithOptionalPin() {
+    const slug = topicSlugRef.current
+    if (slug) {
+      try {
+        await pinTopic(slug)
+      } catch {
+        /* ignore */
+      }
+    }
+    navigate('/play', { replace: true })
+  }
 
   async function onSubmit(e) {
     e.preventDefault()
@@ -44,7 +70,7 @@ export default function WelcomeScreen() {
         setMyCode(data.shortcode)
         setShowCode(true)
       } else {
-        navigate('/play', { replace: true })
+        await goToPlayWithOptionalPin()
       }
     } catch (e) {
       setErr(friendlyApiMessage(e, t('welcome_err_generic'), t))
@@ -59,7 +85,7 @@ export default function WelcomeScreen() {
     try {
       const data = await restoreByCode(restoreCode)
       setToken(data.token)
-      navigate('/play', { replace: true })
+      await goToPlayWithOptionalPin()
     } catch (e) {
       setErr(friendlyApiMessage(e, t('welcome_err_restore'), t))
     } finally {
@@ -77,7 +103,7 @@ export default function WelcomeScreen() {
           <button
             type="button"
             className="btn btn--primary btn--xl"
-            onClick={() => navigate('/play', { replace: true })}
+            onClick={() => void goToPlayWithOptionalPin()}
           >
             {t('welcome_start')}
           </button>
@@ -124,6 +150,22 @@ export default function WelcomeScreen() {
       <div className="welcome__card">
         <h1 className="welcome__brand">{t('welcome_title')}</h1>
         <p className="welcome__hint">{t('welcome_subtitle')}</p>
+        <div className="welcome__lang" role="group" aria-label="Language">
+          <button
+            type="button"
+            className={`welcome__lang-btn${lang === 'ru' ? ' is-active' : ''}`}
+            onClick={() => setLang('ru')}
+          >
+            Русский
+          </button>
+          <button
+            type="button"
+            className={`welcome__lang-btn${lang === 'en' ? ' is-active' : ''}`}
+            onClick={() => setLang('en')}
+          >
+            English
+          </button>
+        </div>
         <form onSubmit={onSubmit} className="welcome__form">
           <label className="welcome__label" htmlFor="kid-name">
             {t('welcome_name_label')}

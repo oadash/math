@@ -14,6 +14,8 @@ export function createSitemapRouter(pool) {
 
     const urls = [
       { loc: base, priority: '1.0' },
+      { loc: `${base}/topics`, priority: '0.9' },
+      { loc: `${base}/en/topics`, priority: '0.9' },
       ...topics.flatMap((t) => {
         const urlSlug = t.slug.replace(/_/g, '-')
         return [

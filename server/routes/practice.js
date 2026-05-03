@@ -2,7 +2,7 @@ import express from 'express'
 import { getAllTopics } from '../services/topicCache.js'
 import { generateProblem } from '../services/problemGenerator.js'
 import { generateProblemEn } from '../services/problemGeneratorEn.js'
-import { renderPracticePage } from '../services/seoMeta.js'
+import { renderPracticePage, renderTopicsPage } from '../services/seoMeta.js'
 
 export function createPracticeRouter(pool) {
   const r = express.Router()
@@ -10,6 +10,16 @@ export function createPracticeRouter(pool) {
   function urlSlugToSlug(urlSlug) {
     return urlSlug.replace(/-/g, '_')
   }
+
+  r.get('/topics', async (_req, res) => {
+    const topics = await getAllTopics(pool)
+    res.type('html').send(renderTopicsPage(topics, 'ru'))
+  })
+
+  r.get('/en/topics', async (_req, res) => {
+    const topics = await getAllTopics(pool)
+    res.type('html').send(renderTopicsPage(topics, 'en'))
+  })
 
   r.get('/practice/:urlSlug', async (req, res) => {
     const slug = urlSlugToSlug(req.params.urlSlug)
