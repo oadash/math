@@ -4,7 +4,7 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import pg from 'pg'
 import { migrate } from './db/migrate.js'
-import { getDatabaseUrl } from './db/databaseUrl.js'
+import { getDatabaseUrl, getDatabaseUrlHints } from './db/databaseUrl.js'
 
 const { Pool } = pg
 
@@ -46,7 +46,12 @@ app.get('/health', (_req, res) => {
 
 app.get('/health/db', async (_req, res) => {
   if (!pool) {
-    return res.status(503).json({ ok: false, db: 'DATABASE_URL not set' })
+    return res.status(503).json({
+      ok: false,
+      db: 'DATABASE_URL not set',
+      hints: getDatabaseUrlHints(),
+      fix: 'Railway: open Postgres → Connect → link to this service, or set DATABASE_URL via Variable Reference from Postgres. Redeploy after saving.',
+    })
   }
   try {
     await pool.query('SELECT 1')
