@@ -8,7 +8,13 @@ export function createApiRouter(pool) {
   const r = express.Router()
 
   if (!pool) {
-    r.use((_req, res) => res.status(503).json({ error: 'database_unavailable' }))
+    r.use((_req, res) =>
+      res.status(503).json({
+        error: 'database_unavailable',
+        message:
+          'База недоступна: для ЭТОГО сервиса в Railway не задан DATABASE_URL (или он пустой). Открой Variables у сервиса с тем же доменом, что в браузере, добавь ссылку на Postgres → Redeploy.',
+      }),
+    )
     return r
   }
 
