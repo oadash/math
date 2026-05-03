@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: '/app/',
   plugins: [
     react(),
     VitePWA({
@@ -16,16 +17,16 @@ export default defineConfig({
         background_color: '#f4f7fb',
         display: 'standalone',
         lang: 'ru',
-        start_url: '/',
+        start_url: '/app/',
         icons: [
           {
-            src: '/pwa-icon.svg',
+            src: '/app/pwa-icon.svg',
             sizes: '512x512',
             type: 'image/svg+xml',
             purpose: 'any',
           },
           {
-            src: '/pwa-icon.svg',
+            src: '/app/pwa-icon.svg',
             sizes: '512x512',
             type: 'image/svg+xml',
             purpose: 'maskable',
@@ -34,7 +35,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,ico,woff,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: '/app/index.html',
       },
     }),
   ],

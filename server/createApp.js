@@ -106,6 +106,7 @@ export function createApp(opts) {
 
   if (spaReady) {
     app.use(
+      '/app',
       express.static(clientDist, {
         index: false,
         maxAge: process.env.NODE_ENV === 'production' ? '2h' : 0,
@@ -116,6 +117,9 @@ export function createApp(opts) {
         req.path.startsWith('/api') ||
         req.path.startsWith('/health') ||
         req.path.startsWith('/debug') ||
+        req.path === '/' ||
+        req.path === '/en' ||
+        req.path === '/en/' ||
         req.path === '/topics' ||
         req.path === '/en/topics' ||
         req.path.startsWith('/practice') ||
@@ -125,7 +129,13 @@ export function createApp(opts) {
       ) {
         return next()
       }
-      res.sendFile(spaIndexPath)
+      if (req.path === '/app' || req.path.startsWith('/app/')) {
+        if (req.path.startsWith('/app/assets/')) {
+          return next()
+        }
+        return res.sendFile(spaIndexPath)
+      }
+      return next()
     })
   } else {
     app.get('/', (_req, res) => {
