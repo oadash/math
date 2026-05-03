@@ -7,6 +7,7 @@ import { migrate } from './db/migrate.js'
 import { getDatabaseUrl, getDatabaseUrlHints } from './db/databaseUrl.js'
 import { poolOptionsForUrl } from './db/poolConfig.js'
 import { API_REVISION, getDeployInfo } from './deployInfo.js'
+import { readBuildCommitFile } from './buildCommit.js'
 
 const { Pool } = pg
 
@@ -43,10 +44,15 @@ app.use(
 app.use(express.json())
 app.use(cookieParser())
 
+app.get('/debug/build-commit', (_req, res) => {
+  res.type('text/plain').send(readBuildCommitFile() ?? 'NO_FILE_NOT_DOCKER_OR_LOCAL')
+})
+
 app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'math-adventure-api',
+    buildCommitFile: readBuildCommitFile(),
     deploy: getDeployInfo(),
   })
 })
@@ -96,7 +102,9 @@ function start() {
   // Bind port before migrate so Railway health checks don’t SIGTERM a slow/hung DB connect.
   app.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}`)
-    console.log(`[deploy] API_REVISION=${API_REVISION} RAILWAY_GIT_COMMIT_SHA=${process.env.RAILWAY_GIT_COMMIT_SHA ?? 'n/a'}`)
+    console.log(
+      `[deploy] API_REVISION=${API_REVISION} BUILD_COMMIT.txt=${readBuildCommitFile() ?? 'absent'} env.RAILWAY_GIT_COMMIT_SHA=${process.env.RAILWAY_GIT_COMMIT_SHA ?? 'n/a'}`,
+    )
     void runMigrateAfterListen()
   })
 }
