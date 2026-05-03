@@ -100,6 +100,34 @@ async function pickWeightedTopicRow(pool, userId) {
  */
 export async function scheduleNextTopic(pool, userId) {
   await runPromotionRules(pool, userId)
+
+  const pinnedRow = await pool.query(`SELECT pinned_topic_slug FROM users WHERE id = $1`, [userId])
+  const pinnedSlug = pinnedRow.rows[0]?.pinned_topic_slug ?? null
+
+  if (pinnedSlug) {
+    const pinned = await pool.query(
+      `SELECT uts.state, t.id, t.slug, t.title_ru, t.sort_order
+       FROM user_topic_state uts
+       JOIN topics t ON t.id = uts.topic_id
+       WHERE uts.user_id = $1 AND t.slug = $2 AND uts.state != 'locked'`,
+      [userId, pinnedSlug],
+    )
+    if (pinned.rows.length > 0) {
+      const row = pinned.rows[0]
+      return {
+        topic: {
+          id: row.id,
+          slug: row.slug,
+          title_ru: row.title_ru,
+          state: row.state,
+          sort_order: row.sort_order,
+        },
+        isFirstIntroduction: false,
+      }
+    }
+    await pool.query(`UPDATE users SET pinned_topic_slug = NULL WHERE id = $1`, [userId])
+  }
+
   const row = await pickWeightedTopicRow(pool, userId)
   if (!row) return null
   return {

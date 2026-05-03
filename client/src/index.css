@@ -468,6 +468,37 @@ body {
   color: #666;
 }
 
+.topic-tree__train-btn {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0;
+  min-height: 44px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.pin-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: #e8e4ff;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.pin-banner__unpin {
+  flex-shrink: 0;
+  margin: 0;
+  min-height: 44px;
+  font-size: 0.85rem;
+}
+
 .progress-page__error,
 .progress-page__loading {
   color: #666;

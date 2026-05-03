@@ -30,6 +30,12 @@ export async function migrate(pool) {
   const seed = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8')
   await pool.query(seed)
   console.log('migrate: seed applied')
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS pinned_topic_slug TEXT DEFAULT NULL
+  `)
+  console.log('migrate: users.pinned_topic_slug ensured')
 }
 
 async function runCli() {

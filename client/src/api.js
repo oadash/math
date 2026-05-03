@@ -62,6 +62,14 @@ export async function api(path, opts = {}) {
  * @param {Error & { apiCode?: string }} [err]
  * @param {string} [fallback] when the server sent no message
  */
+export async function pinTopic(slug) {
+  return api('/api/topic/pin', { method: 'POST', json: { topicSlug: slug } })
+}
+
+export async function unpinTopic() {
+  return api('/api/topic/unpin', { method: 'POST' })
+}
+
 export function friendlyApiMessage(err, fallback = 'Что-то пошло не так') {
   if (!err) return fallback
   if (

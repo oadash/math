@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
-import { api, friendlyApiMessage, getToken } from '../api.js'
+import { Navigate, useNavigate } from 'react-router-dom'
+import { api, friendlyApiMessage, getToken, pinTopic } from '../api.js'
 
 const STATE_COLOR = {
   locked: { bg: '#e8e8e8', fg: '#555', label: 'Скоро' },
@@ -23,6 +23,7 @@ function todayStreakFromStorage() {
 }
 
 export default function ProgressScreen() {
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
 
@@ -79,6 +80,22 @@ export default function ProgressScreen() {
                     Верно {t.total_correct ?? 0} из {t.total_attempts ?? 0}
                     {t.correct_streak > 0 ? ` · серия ${t.correct_streak}` : ''}
                   </span>
+                ) : null}
+                {t.state !== 'locked' ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost topic-tree__train-btn"
+                    onClick={async () => {
+                      try {
+                        await pinTopic(t.slug)
+                        navigate('/play')
+                      } catch (e) {
+                        setErr(friendlyApiMessage(e, 'Не удалось закрепить тему'))
+                      }
+                    }}
+                  >
+                    Тренировать
+                  </button>
                 ) : null}
               </div>
             </li>

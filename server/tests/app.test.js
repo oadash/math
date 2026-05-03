@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import request from 'supertest'
 import { createTestApp } from './helpers.js'
+import { signUserToken } from '../auth/jwtUtil.js'
+
+const userId = 'a0000000-0000-4000-8000-000000000001'
 
 describe('HTTP app', () => {
   it('GET /health returns ok', async () => {
@@ -25,5 +28,55 @@ describe('HTTP app', () => {
       .send({ name: 'Тест', age: 8 })
       .expect(503)
     expect(res.body.error).toBe('database_unavailable')
+  })
+
+  it('POST /api/topic/pin without token returns 401', async () => {
+    const app = createTestApp({ query: vi.fn() })
+    await request(app).post('/api/topic/pin').send({ topicSlug: 'addition_10' }).expect(401)
+  })
+
+  it('POST /api/topic/pin returns 403 when topic is locked', async () => {
+    const token = signUserToken(userId)
+    const mockPool = {
+      query: vi.fn(async (sql) => {
+        const s = String(sql)
+        if (s.includes('FROM topics WHERE slug')) {
+          return { rows: [{ id: '11111111-1111-4111-8111-111111111111' }] }
+        }
+        if (s.includes('FROM user_topic_state WHERE')) {
+          return { rows: [{ state: 'locked' }] }
+        }
+        return { rows: [] }
+      }),
+    }
+    const app = createTestApp(mockPool)
+    const res = await request(app)
+      .post('/api/topic/pin')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ topicSlug: 'addition_10' })
+      .expect(403)
+    expect(res.body.error).toBe('forbidden')
+  })
+
+  it('POST /api/topic/unpin clears pin with JWT', async () => {
+    const token = signUserToken(userId)
+    const mockPool = {
+      query: vi.fn(async (sql) => {
+        if (String(sql).includes('UPDATE users SET pinned_topic_slug = NULL')) {
+          return { rowCount: 1, rows: [] }
+        }
+        return { rows: [] }
+      }),
+    }
+    const app = createTestApp(mockPool)
+    await request(app)
+      .post('/api/topic/unpin')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+    expect(mockPool.query).toHaveBeenCalled()
+    const unpinCall = mockPool.query.mock.calls.find((c) =>
+      String(c[0]).includes('pinned_topic_slug = NULL'),
+    )
+    expect(unpinCall).toBeDefined()
   })
 })

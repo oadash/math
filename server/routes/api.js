@@ -139,6 +139,42 @@ export function createApiRouter(pool) {
     }
   })
 
+  r.post('/topic/pin', requireUser, async (req, res) => {
+    try {
+      const topicSlug = String(req.body?.topicSlug ?? '').trim()
+      if (!topicSlug) {
+        return res.status(400).json({ error: 'bad_request', message: 'Нужен topicSlug' })
+      }
+      const topicRow = await pool.query(`SELECT id FROM topics WHERE slug = $1`, [topicSlug])
+      if (topicRow.rows.length === 0) {
+        return res.status(400).json({ error: 'unknown_topic', message: 'Тема не найдена' })
+      }
+      const topicId = topicRow.rows[0].id
+      const st = await pool.query(
+        `SELECT state FROM user_topic_state WHERE user_id = $1 AND topic_id = $2`,
+        [req.userId, topicId],
+      )
+      if (st.rows.length === 0 || st.rows[0].state === 'locked') {
+        return res.status(403).json({ error: 'forbidden', message: 'Тема ещё закрыта' })
+      }
+      await pool.query(`UPDATE users SET pinned_topic_slug = $2 WHERE id = $1`, [req.userId, topicSlug])
+      res.json({ ok: true, pinnedSlug: topicSlug })
+    } catch (e) {
+      console.error(e)
+      res.status(500).json({ error: 'server_error' })
+    }
+  })
+
+  r.post('/topic/unpin', requireUser, async (req, res) => {
+    try {
+      await pool.query(`UPDATE users SET pinned_topic_slug = NULL WHERE id = $1`, [req.userId])
+      res.json({ ok: true })
+    } catch (e) {
+      console.error(e)
+      res.status(500).json({ error: 'server_error' })
+    }
+  })
+
   r.get('/progress', requireUser, async (req, res) => {
     try {
       const states = await pool.query(
@@ -160,6 +196,8 @@ export function createApiRouter(pool) {
     try {
       const picked = await scheduleNextTopic(pool, req.userId)
       if (!picked) return res.status(404).json({ error: 'no_topic' })
+      const pinMeta = await pool.query(`SELECT pinned_topic_slug FROM users WHERE id = $1`, [req.userId])
+      const pinnedTopicSlug = pinMeta.rows[0]?.pinned_topic_slug ?? null
       const prob = generateProblem(picked.topic)
       const problemToken = signProblemToken({
         problemId: prob.id,
@@ -171,6 +209,7 @@ export function createApiRouter(pool) {
         problem,
         problemToken,
         isFirstIntroduction: picked.isFirstIntroduction,
+        pinnedTopicSlug,
         topic: {
           slug: picked.topic.slug,
           title_ru: picked.topic.title_ru,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { api, friendlyApiMessage, getToken } from '../api.js'
+import { api, friendlyApiMessage, getToken, unpinTopic } from '../api.js'
 import IntroCard from '../components/IntroCard.jsx'
 import {
   correctFeedbackPhrase,
@@ -37,6 +37,7 @@ export default function GameScreen() {
   const [busy, setBusy] = useState(false)
   const [boardClass, setBoardClass] = useState('')
   const [feedback, setFeedback] = useState(null)
+  const [pinnedSlug, setPinnedSlug] = useState(null)
 
   const loadProblem = useCallback(async () => {
     setError('')
@@ -46,6 +47,7 @@ export default function GameScreen() {
     try {
       const data = await api('/api/problem')
       setPayload(data)
+      setPinnedSlug(data.pinnedTopicSlug ?? null)
       const slug = data.topic?.slug
       const seen = slug && sessionStorage.getItem(introSessionKey(slug))
       if (data.isFirstIntroduction && !seen) setPhase('intro')
@@ -117,6 +119,27 @@ export default function GameScreen() {
   return (
     <main className={`game ${boardClass}`}>
       {showTopicPill && payload?.topic ? <div className="topic-pill">{payload.topic.title_ru}</div> : null}
+
+      {pinnedSlug ? (
+        <div className="pin-banner">
+          <span>Тренируем: {payload?.topic?.title_ru}</span>
+          <button
+            type="button"
+            className="btn btn--ghost pin-banner__unpin"
+            onClick={async () => {
+              try {
+                await unpinTopic()
+                setPinnedSlug(null)
+                loadProblem()
+              } catch (e) {
+                setError(friendlyApiMessage(e, 'Не удалось снять закрепление'))
+              }
+            }}
+          >
+            × Случайная тема
+          </button>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="game__error">
