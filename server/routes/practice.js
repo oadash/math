@@ -15,7 +15,8 @@ export function createPracticeRouter(pool) {
     res.type('html').send(renderLandingPage('ru'))
   })
 
-  r.get('/en', (_req, res) => {
+  r.get('/en', (req, res, next) => {
+    if (req.path !== '/en') return next()
     res.redirect(308, '/en/')
   })
 
