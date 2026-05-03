@@ -8,6 +8,7 @@ import { getDatabaseUrl, getDatabaseUrlHints } from './db/databaseUrl.js'
 import { poolOptionsForUrl } from './db/poolConfig.js'
 import { API_REVISION, getDeployInfo } from './deployInfo.js'
 import { readBuildCommitFile } from './buildCommit.js'
+import { createApiRouter } from './routes/api.js'
 
 const { Pool } = pg
 
@@ -43,6 +44,8 @@ app.use(
 )
 app.use(express.json())
 app.use(cookieParser())
+
+app.use('/api', createApiRouter(pool))
 
 app.get('/debug/build-commit', (_req, res) => {
   res.type('text/plain').send(readBuildCommitFile() ?? 'NO_FILE_NOT_DOCKER_OR_LOCAL')
