@@ -36,6 +36,29 @@ export async function migrate(pool) {
     ADD COLUMN IF NOT EXISTS pinned_topic_slug TEXT DEFAULT NULL
   `)
   console.log('migrate: users.pinned_topic_slug ensured')
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS grade INTEGER DEFAULT NULL
+  `)
+  console.log('migrate: users.grade ensured')
+
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'answers'
+          AND column_name = 'answer_given'
+          AND udt_name = 'int4'
+      ) THEN
+        ALTER TABLE answers
+        ALTER COLUMN answer_given TYPE TEXT USING answer_given::text;
+      END IF;
+    END $$
+  `)
+  console.log('migrate: answers.answer_given TEXT ensured')
 }
 
 async function runCli() {

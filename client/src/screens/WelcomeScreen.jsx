@@ -6,6 +6,7 @@ export default function WelcomeScreen() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [age, setAge] = useState('8')
+  const [grade, setGrade] = useState('')
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -28,7 +29,10 @@ export default function WelcomeScreen() {
     }
     setLoading(true)
     try {
-      const data = await api('/api/users', { method: 'POST', json: { name: n, age: a } })
+      const data = await api('/api/users', {
+        method: 'POST',
+        json: { name: n, age: a, grade: grade === '' ? null : Number(grade) },
+      })
       setToken(data.token)
       navigate('/play', { replace: true })
     } catch (e) {
@@ -68,6 +72,22 @@ export default function WelcomeScreen() {
             min={1}
             max={18}
           />
+          <label className="welcome__label welcome__label--small" htmlFor="kid-grade">
+            В каком классе? (необязательно)
+          </label>
+          <select
+            id="kid-grade"
+            className="welcome__input"
+            value={grade}
+            onChange={(e) => setGrade(e.target.value)}
+          >
+            <option value="">Не знаю / сам выберу</option>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((g) => (
+              <option key={g} value={String(g)}>
+                {g} класс
+              </option>
+            ))}
+          </select>
           {err ? <p className="welcome__error">{err}</p> : null}
           <button type="submit" className="btn btn--primary btn--xl welcome__submit" disabled={loading}>
             {loading ? 'Секунду…' : 'Играть!'}

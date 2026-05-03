@@ -155,8 +155,8 @@ export default function GameScreen() {
       {feedback ? (
         <div className={`game__feedback ${feedback.correct ? 'is-correct' : 'is-wrong'}`} role="status">
           <span className="game__feedback-phrase">{feedback.phrase}</span>
-          {!feedback.correct && feedback.correctAnswer !== undefined ? (
-            <span className="game__feedback-answer">Правильно: {feedback.correctAnswer}</span>
+          {!feedback.correct && feedback.correctAnswer !== undefined && feedback.correctAnswer !== null ? (
+            <span className="game__feedback-answer">Правильно: {String(feedback.correctAnswer)}</span>
           ) : null}
           {feedback.milestone ? <span className="game__feedback-milestone">{feedback.milestone}</span> : null}
         </div>
@@ -166,15 +166,15 @@ export default function GameScreen() {
         <>
           <div className="game__problem">{p.display}</div>
           <div className="choices-grid">
-            {p.choices.map((n) => (
+            {(p.stringChoices ?? p.choices).map((opt) => (
               <button
-                key={n}
+                key={String(opt)}
                 type="button"
                 className="choice-btn"
                 disabled={busy}
-                onClick={() => onChoose(n)}
+                onClick={() => onChoose(opt)}
               >
-                {n}
+                {opt}
               </button>
             ))}
           </div>

@@ -44,7 +44,7 @@ CREATE TABLE answers (
   user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   topic_id UUID NOT NULL REFERENCES topics (id) ON DELETE CASCADE,
   problem_json JSONB NOT NULL,
-  answer_given INTEGER NOT NULL,
+  answer_given TEXT NOT NULL,
   is_correct BOOLEAN NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

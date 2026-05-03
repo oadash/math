@@ -21,6 +21,11 @@ describe('HTTP app', () => {
     await request(app).get('/api/me').expect(401)
   })
 
+  it('POST /api/users rejects grade out of 1–11', async () => {
+    const app = createTestApp({ query: vi.fn() })
+    await request(app).post('/api/users').send({ name: 'Аня', age: 8, grade: 12 }).expect(400)
+  })
+
   it('POST /api/users with pool=null returns 503', async () => {
     const app = createTestApp(null)
     const res = await request(app)

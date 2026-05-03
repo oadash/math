@@ -2,6 +2,7 @@ import express from 'express'
 import { requireUser } from '../middleware/auth.js'
 import { getJwtSecret, signUserToken, signProblemToken, verifyProblemToken } from '../auth/jwtUtil.js'
 import { generateProblem } from '../services/problemGenerator.js'
+import { getStartSlug } from '../services/gradeMapping.js'
 import { scheduleNextTopic, runPromotionRules } from '../services/spiralScheduler.js'
 
 export function createApiRouter(pool) {
@@ -32,17 +33,35 @@ export function createApiRouter(pool) {
         return res.status(400).json({ error: 'bad_request', message: 'Нужны name и age' })
       }
 
+      const gradeRaw = req.body?.grade
+      const grade =
+        gradeRaw === null || gradeRaw === undefined || gradeRaw === ''
+          ? null
+          : Number(gradeRaw)
+      if (grade !== null && (!Number.isInteger(grade) || grade < 1 || grade > 11)) {
+        return res.status(400).json({ error: 'bad_request', message: 'grade: 1–11 или не указывать' })
+      }
+
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
         const u = await client.query(
-          `INSERT INTO users (name, age) VALUES ($1, $2) RETURNING id, name, age, created_at`,
-          [name, age],
+          `INSERT INTO users (name, age, grade) VALUES ($1, $2, $3) RETURNING id, name, age, grade, created_at`,
+          [name, age, grade],
         )
         const userId = u.rows[0].id
-        const topics = await client.query(`SELECT id, slug FROM topics ORDER BY sort_order`)
+        const topics = await client.query(`SELECT id, slug, sort_order FROM topics ORDER BY sort_order`)
+        const startSlug = getStartSlug(grade)
+        let startTopic = topics.rows.find((t) => t.slug === startSlug)
+        if (!startTopic) {
+          startTopic = topics.rows.find((t) => t.slug === 'addition_10') ?? topics.rows[0]
+        }
+        const startOrder = startTopic.sort_order
         for (const t of topics.rows) {
-          const state = t.slug === 'addition_10' ? 'introducing' : 'locked'
+          let state
+          if (t.sort_order < startOrder) state = 'mastered'
+          else if (t.slug === startTopic.slug) state = 'introducing'
+          else state = 'locked'
           await client.query(
             `INSERT INTO user_topic_state (user_id, topic_id, state) VALUES ($1, $2, $3::topic_progress_state)`,
             [userId, t.id, state],
@@ -65,7 +84,7 @@ export function createApiRouter(pool) {
 
   r.get('/me', requireUser, async (req, res) => {
     try {
-      const u = await pool.query(`SELECT id, name, age, created_at FROM users WHERE id = $1`, [req.userId])
+      const u = await pool.query(`SELECT id, name, age, grade, created_at FROM users WHERE id = $1`, [req.userId])
       if (u.rows.length === 0) return res.status(404).json({ error: 'not_found' })
       const states = await pool.query(
         `SELECT t.slug, t.title_ru, t.sort_order, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts
@@ -202,9 +221,10 @@ export function createApiRouter(pool) {
       const problemToken = signProblemToken({
         problemId: prob.id,
         topicSlug: prob.topic_slug,
-        answer: prob.answer,
+        answer: prob.stringAnswer == null ? prob.answer : null,
+        stringAnswer: prob.stringAnswer ?? null,
       })
-      const { answer: _ans, ...problem } = prob
+      const { answer: _ans, stringAnswer: _strAns, ...problem } = prob
       res.json({
         problem,
         problemToken,
@@ -236,16 +256,35 @@ export function createApiRouter(pool) {
       } catch {
         return res.status(400).json({ error: 'bad_token', message: 'Просрочен или битый problemToken' })
       }
-      const { problemId, topicSlug, answer } = payload
+      const { problemId, topicSlug, answer, stringAnswer } = payload
       const topicRow = await pool.query(`SELECT id FROM topics WHERE slug = $1`, [topicSlug])
       if (topicRow.rows.length === 0) return res.status(400).json({ error: 'unknown_topic' })
       const topicId = topicRow.rows[0].id
 
-      const given = Number(answerGiven)
-      if (!Number.isFinite(given)) {
-        return res.status(400).json({ error: 'bad_request', message: 'answerGiven должен быть числом' })
+      const hasString = stringAnswer != null && stringAnswer !== ''
+      let correct
+      /** @type {string|number} */
+      let correctAnswerOut
+      let answerStored
+
+      if (hasString) {
+        const givenStr =
+          typeof answerGiven === 'string' ? answerGiven.trim() : String(answerGiven ?? '').trim()
+        if (!givenStr) {
+          return res.status(400).json({ error: 'bad_request', message: 'Нужен ответ (строка)' })
+        }
+        correct = givenStr === String(stringAnswer).trim()
+        correctAnswerOut = stringAnswer
+        answerStored = givenStr
+      } else {
+        const given = Number(answerGiven)
+        if (!Number.isFinite(given)) {
+          return res.status(400).json({ error: 'bad_request', message: 'answerGiven должен быть числом' })
+        }
+        correct = given === Number(answer)
+        correctAnswerOut = answer
+        answerStored = String(given)
       }
-      const correct = given === Number(answer)
 
       const problemJson = { id: problemId, topic_slug: topicSlug }
 
@@ -274,7 +313,7 @@ export function createApiRouter(pool) {
         await client.query(
           `INSERT INTO answers (user_id, topic_id, problem_json, answer_given, is_correct)
            VALUES ($1, $2, $3::jsonb, $4, $5)`,
-          [req.userId, topicId, JSON.stringify(problemJson), given, correct],
+          [req.userId, topicId, JSON.stringify(problemJson), answerStored, correct],
         )
 
         await client.query(
@@ -307,7 +346,7 @@ export function createApiRouter(pool) {
 
       res.json({
         correct,
-        correctAnswer: answer,
+        correctAnswer: correctAnswerOut,
         updatedTopicState: updated.rows[0] ?? null,
       })
     } catch (e) {

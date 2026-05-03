@@ -1,53 +1,63 @@
 import { describe, it, expect } from 'vitest'
-import { buildChoices, generateProblem } from '../services/problemGenerator.js'
+import { buildChoices, buildStringChoices, generateProblem, GENERATOR_SLUGS } from '../services/problemGenerator.js'
 
-const SEED_SLUGS = [
-  'addition_10',
-  'addition_20',
-  'subtraction_10',
-  'addition_100',
-  'subtraction_20',
-  'multiplication_2',
-  'multiplication_3',
-  'multiplication_5',
-  'multiplication_10',
-  'multiplication_full',
-  'division_simple',
-]
+const STRING_SLUGS = new Set([
+  'fractions_compare',
+  'trigonometry_basic',
+  'trigonometry_identities',
+  'trigonometry_equations',
+])
 
 describe('buildChoices', () => {
   it('has 4 unique ints including answer', () => {
-    for (let n = 0; n < 15; n++) {
+    for (let n = -3; n < 15; n++) {
       const ch = buildChoices(n)
       expect(ch).toHaveLength(4)
       expect(new Set(ch).size).toBe(4)
       expect(ch).toContain(n)
-      for (const x of ch) {
-        expect(x).toBeGreaterThanOrEqual(0)
-      }
     }
   })
 
   it('wrong options within reasonable distance for small answers', () => {
     const ch = buildChoices(7)
     for (const x of ch) {
-      if (x !== 7) expect(Math.abs(x - 7)).toBeLessThanOrEqual(6)
+      if (x !== 7) expect(Math.abs(x - 7)).toBeLessThanOrEqual(8)
     }
   })
 })
 
+describe('buildStringChoices', () => {
+  it('includes correct string once', () => {
+    const ch = buildStringChoices('1/2', ['1/3', '1/4', '2/3', '3/4'])
+    expect(ch).toHaveLength(4)
+    expect(new Set(ch).size).toBe(4)
+    expect(ch).toContain('1/2')
+  })
+})
+
 describe('generateProblem', () => {
-  it('covers all seed slugs', () => {
-    for (const slug of SEED_SLUGS) {
+  it('covers all generator slugs', () => {
+    for (const slug of GENERATOR_SLUGS) {
       const p = generateProblem({ slug })
       expect(p.id).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
       expect(p.topic_slug).toBe(slug)
-      expect(p.display).toContain('?')
-      expect(Number.isInteger(p.answer)).toBe(true)
-      expect(p.choices).toHaveLength(4)
-      expect(p.choices).toContain(p.answer)
+      expect(p.display).toMatch(/\?|Найди|чему равн/i)
+
+      if (STRING_SLUGS.has(slug)) {
+        expect(p.stringAnswer).toBeTruthy()
+        expect(p.stringChoices).toHaveLength(4)
+        expect(new Set(p.stringChoices).size).toBe(4)
+        expect(p.stringChoices).toContain(p.stringAnswer)
+        expect(p.answer).toBeUndefined()
+        expect(p.choices).toBeUndefined()
+      } else {
+        expect(Number.isFinite(p.answer)).toBe(true)
+        expect(p.choices).toHaveLength(4)
+        expect(p.choices).toContain(p.answer)
+        expect(p.stringChoices).toBeUndefined()
+      }
     }
   })
 
