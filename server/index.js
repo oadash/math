@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import pg from 'pg'
+import { migrate } from './db/migrate.js'
 
 const { Pool } = pg
 
@@ -45,6 +46,19 @@ app.get('/health/db', async (_req, res) => {
   }
 })
 
-app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`)
-})
+async function start() {
+  if (pool) {
+    try {
+      await migrate(pool)
+    } catch (err) {
+      console.error('migrate failed', err)
+      process.exit(1)
+    }
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`)
+  })
+}
+
+start()
