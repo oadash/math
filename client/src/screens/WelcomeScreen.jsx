@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, getToken, setToken } from '../api.js'
+import { api, friendlyApiMessage, getToken, setToken } from '../api.js'
 
 export default function WelcomeScreen() {
   const navigate = useNavigate()
@@ -32,7 +32,7 @@ export default function WelcomeScreen() {
       setToken(data.token)
       navigate('/play', { replace: true })
     } catch (e) {
-      setErr(e.message || 'Не получилось зайти')
+      setErr(friendlyApiMessage(e, 'Не получилось зайти'))
     } finally {
       setLoading(false)
     }
@@ -54,7 +54,7 @@ export default function WelcomeScreen() {
             onChange={(e) => setName(e.target.value)}
             autoComplete="nickname"
             maxLength={64}
-            placeholder="Например, Миша"
+            placeholder="Например, Марк"
           />
           <label className="welcome__label welcome__label--small" htmlFor="kid-age">
             Сколько тебе лет?

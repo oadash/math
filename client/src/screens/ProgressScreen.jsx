@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { api, getToken } from '../api.js'
+import { api, friendlyApiMessage, getToken } from '../api.js'
 
 const STATE_COLOR = {
   locked: { bg: '#e8e8e8', fg: '#555', label: 'Скоро' },
@@ -33,7 +33,7 @@ export default function ProgressScreen() {
         const res = await api('/api/progress')
         if (!cancelled) setData(res)
       } catch (e) {
-        if (!cancelled) setErr(e.message || 'Ошибка')
+        if (!cancelled) setErr(friendlyApiMessage(e, 'Ошибка'))
       }
     })()
     return () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { api, getToken } from '../api.js'
+import { api, friendlyApiMessage, getToken } from '../api.js'
 import IntroCard from '../components/IntroCard.jsx'
 import {
   correctFeedbackPhrase,
@@ -51,7 +51,7 @@ export default function GameScreen() {
       if (data.isFirstIntroduction && !seen) setPhase('intro')
       else setPhase('problem')
     } catch (e) {
-      setError(e.message || 'Не удалось загрузить задачу')
+      setError(friendlyApiMessage(e, 'Не удалось загрузить задачу'))
       setPhase('problem')
     }
   }, [])
@@ -100,7 +100,7 @@ export default function GameScreen() {
         }, 1500)
       }
     } catch (e) {
-      setError(e.message || 'Ошибка ответа')
+      setError(friendlyApiMessage(e, 'Ошибка ответа'))
       setBusy(false)
     }
   }

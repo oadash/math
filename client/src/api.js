@@ -38,18 +38,40 @@ export async function api(path, opts = {}) {
 
   if (!res.ok) {
     let msg = res.statusText
+    /** @type {string|undefined} */
+    let apiCode
     try {
-      const err = await res.json()
-      if (err.message) msg = err.message
-      else if (err.error) msg = err.error
+      const errBody = await res.json()
+      if (typeof errBody.error === 'string') apiCode = errBody.error
+      if (errBody.message) msg = errBody.message
+      else if (errBody.error) msg = errBody.error
     } catch {
       /* ignore */
     }
     const e = new Error(msg)
     e.status = res.status
+    e.apiCode = apiCode
     throw e
   }
 
   if (res.status === 204) return null
   return res.json()
+}
+
+/**
+ * @param {Error & { apiCode?: string }} [err]
+ * @param {string} [fallback] when the server sent no message
+ */
+export function friendlyApiMessage(err, fallback = 'Что-то пошло не так') {
+  if (!err) return fallback
+  if (
+    err.apiCode === 'database_unavailable' ||
+    /database_unavailable/i.test(String(err.message))
+  ) {
+    return (
+      'Сейчас игра не может сохранить задания: база не подключена. ' +
+      'Попроси взрослого проверить настройки сайта (для этого адреса нужна переменная DATABASE_URL).'
+    )
+  }
+  return err.message || fallback
 }
