@@ -108,7 +108,11 @@ export function createApiRouter(pool) {
         problem,
         problemToken,
         isFirstIntroduction: picked.isFirstIntroduction,
-        topic: { slug: picked.topic.slug, title_ru: picked.topic.title_ru },
+        topic: {
+          slug: picked.topic.slug,
+          title_ru: picked.topic.title_ru,
+          state: picked.topic.state,
+        },
       })
     } catch (e) {
       console.error(e)
