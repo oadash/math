@@ -8,6 +8,7 @@ describe('HTTP app', () => {
     const res = await request(app).get('/health').expect(200)
     expect(res.body.ok).toBe(true)
     expect(res.body.service).toBe('math-adventure-api')
+    expect(res.body.databaseConfigured).toBe(false)
     expect(res.headers['x-api-revision']).toBeDefined()
   })
 

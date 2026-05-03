@@ -82,6 +82,63 @@ export function createApiRouter(pool) {
     }
   })
 
+  /** Сводка для взрослых: попытки и % верных за последние 7 дней по темам (тот же JWT, что у ребёнка). */
+  r.get('/parent/summary', requireUser, async (req, res) => {
+    try {
+      const u = await pool.query(`SELECT name, age FROM users WHERE id = $1`, [req.userId])
+      if (u.rows.length === 0) return res.status(404).json({ error: 'not_found' })
+
+      const topics = await pool.query(
+        `SELECT t.slug, t.title_ru, t.sort_order,
+            COALESCE(COUNT(a.id), 0)::int AS attempts,
+            COALESCE(SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), 0)::int AS correct
+         FROM topics t
+         LEFT JOIN answers a
+           ON a.topic_id = t.id
+          AND a.user_id = $1
+          AND a.created_at >= now() - interval '7 days'
+         GROUP BY t.id, t.slug, t.title_ru, t.sort_order
+         ORDER BY t.sort_order`,
+        [req.userId],
+      )
+
+      let totalAttempts = 0
+      let totalCorrect = 0
+      const byTopic = topics.rows.map((row) => {
+        totalAttempts += row.attempts
+        totalCorrect += row.correct
+        const percentCorrect =
+          row.attempts > 0 ? Math.round((100 * row.correct) / row.attempts) : null
+        return {
+          slug: row.slug,
+          titleRu: row.title_ru,
+          attempts: row.attempts,
+          correct: row.correct,
+          percentCorrect,
+        }
+      })
+
+      const since = await pool.query(`SELECT (now() - interval '7 days') AS t`)
+      const sinceIso = since.rows[0]?.t?.toISOString?.() ?? null
+
+      res.json({
+        user: u.rows[0],
+        periodDays: 7,
+        since: sinceIso,
+        totals: {
+          attempts: totalAttempts,
+          correct: totalCorrect,
+          percentCorrect:
+            totalAttempts > 0 ? Math.round((100 * totalCorrect) / totalAttempts) : null,
+        },
+        byTopic,
+      })
+    } catch (e) {
+      console.error(e)
+      res.status(500).json({ error: 'server_error' })
+    }
+  })
+
   r.get('/progress', requireUser, async (req, res) => {
     try {
       const states = await pool.query(

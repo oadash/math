@@ -55,6 +55,7 @@ export function createApp(opts) {
     res.json({
       ok: true,
       service: 'math-adventure-api',
+      databaseConfigured: Boolean(pool),
       buildCommitFile: readBuildCommitFile(),
       deploy: getDeployInfo(),
     })
