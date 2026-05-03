@@ -9,7 +9,7 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "migrate": "node db/migrate.js",
-    "test": "vitest run",
+    "test": "node ./scripts/run-vitest.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
