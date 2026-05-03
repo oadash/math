@@ -72,14 +72,20 @@ export async function runPromotionRules(pool, userId) {
 
 async function pickWeightedTopicRow(pool, userId) {
   const r = await pool.query(
-    `SELECT uts.state, t.id, t.slug, t.title_ru, t.title_en, t.sort_order
+    `SELECT uts.state, uts.total_attempts, t.id, t.slug, t.title_ru, t.title_en, t.sort_order
      FROM user_topic_state uts
      JOIN topics t ON t.id = uts.topic_id
      WHERE uts.user_id = $1
-       AND uts.state IN ('introducing', 'practicing', 'mastered')`,
+       AND uts.state IN ('introducing', 'practicing', 'mastered')
+     ORDER BY t.sort_order`,
     [userId],
   )
   const rows = r.rows
+
+  const unseenIntroducing = rows.find(
+    (row) => row.state === 'introducing' && Number(row.total_attempts ?? 0) === 0,
+  )
+  if (unseenIntroducing) return unseenIntroducing
 
   const weighted = rows.map((row) => ({
     row,

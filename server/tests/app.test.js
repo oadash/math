@@ -84,7 +84,7 @@ describe('HTTP app', () => {
     await request(app).post('/api/topic/pin').send({ topicSlug: 'addition_10' }).expect(401)
   })
 
-  it('POST /api/topic/pin rejects locked topic', async () => {
+  it('POST /api/topic/pin allows locked topic (practice any topic)', async () => {
     const token = signUserToken(userId)
     const mockPool = {
       query: vi.fn(async (sql) => {
@@ -117,12 +117,12 @@ describe('HTTP app', () => {
       .post('/api/topic/pin')
       .set('Authorization', `Bearer ${token}`)
       .send({ topicSlug: 'fractions_simple' })
-      .expect(403)
-    expect(res.body.error).toBe('topic_locked')
+      .expect(200)
+    expect(res.body).toEqual({ ok: true, pinnedSlug: 'fractions_simple' })
     const updateCall = mockPool.query.mock.calls.find((c) =>
       String(c[0]).includes('UPDATE users SET pinned_topic_slug'),
     )
-    expect(updateCall).toBeUndefined()
+    expect(updateCall).toBeDefined()
   })
 
   it('POST /api/topic/pin returns 403 without user_topic_state row', async () => {

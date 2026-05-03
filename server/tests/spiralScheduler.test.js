@@ -157,4 +157,50 @@ describe('scheduleNextTopic', () => {
     expect(out.isFirstIntroduction).toBe(true)
     vi.restoreAllMocks()
   })
+
+  it('prioritizes never-attempted introducing topic before weighted random', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const pool = {
+      query: vi.fn(async (sql) => {
+        const s = String(sql)
+        if (s.includes(`state = 'practicing'`) && s.includes('SELECT topic_id') && !s.includes('JOIN')) {
+          return { rows: [] }
+        }
+        if (s.includes('FROM answers')) return { rows: [] }
+        if (s.includes('pinned_topic_slug')) return { rows: [{ pinned_topic_slug: null }] }
+        if (s.includes(`IN ('introducing', 'practicing', 'mastered')`)) {
+          return {
+            rows: [
+              {
+                id: 'act-id',
+                slug: 'addition_10',
+                title_ru: 'Активная',
+                state: 'practicing',
+                total_attempts: 20,
+                sort_order: 1,
+              },
+              {
+                id: 'new-id',
+                slug: 'addition_20',
+                title_ru: 'Новая',
+                state: 'introducing',
+                total_attempts: 0,
+                sort_order: 2,
+              },
+            ],
+          }
+        }
+        if (s.includes('prerequisite_topic_id') && s.includes('correct_streak >= 3')) {
+          return { rows: [] }
+        }
+        return { rows: [] }
+      }),
+    }
+
+    const out = await scheduleNextTopic(pool, 'u1')
+    expect(out).not.toBeNull()
+    expect(out.topic.slug).toBe('addition_20')
+    expect(out.isFirstIntroduction).toBe(true)
+    vi.restoreAllMocks()
+  })
 })
