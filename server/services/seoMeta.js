@@ -155,6 +155,8 @@ const LANDING_EXTRA_STYLES = `
     .footer-nav a { color: #6c5ce7; font-weight: 700; text-decoration: none; margin-right: 0.75rem; }
     .footer-nav a:hover { text-decoration: underline; }`
 
+const practiceExamplesCache = new Map()
+
 /**
  * @param {'ru'|'en'} lang
  */
@@ -327,14 +329,19 @@ export function renderPracticePage(topic, lang, generateRu, generateEn) {
   const altLangPath = lang === 'en' ? '' : '/en'
   const urlSlug = topic.slug.replace(/_/g, '-')
 
-  const gen = lang === 'en' ? generateEn : generateRu
-  const examples = []
-  for (let i = 0; i < 5; i++) {
-    try {
-      examples.push(gen({ slug: topic.slug }).display)
-    } catch {
-      /* skip */
+  const examplesCacheKey = `${lang}:${topic.slug}`
+  let examples = practiceExamplesCache.get(examplesCacheKey)
+  if (!examples) {
+    const gen = lang === 'en' ? generateEn : generateRu
+    examples = []
+    for (let i = 0; i < 5; i++) {
+      try {
+        examples.push(gen({ slug: topic.slug }).display)
+      } catch {
+        /* skip */
+      }
     }
+    practiceExamplesCache.set(examplesCacheKey, examples)
   }
 
   const ld = {

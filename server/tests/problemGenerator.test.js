@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildChoices, buildStringChoices, generateProblem, GENERATOR_SLUGS } from '../services/problemGenerator.js'
+import { generateProblemEn } from '../services/problemGeneratorEn.js'
 
 const STRING_SLUGS = new Set([
   'fractions_compare',
@@ -217,6 +218,114 @@ describe('problem quality — no infinite loops', () => {
     const slugs = [...GENERATOR_SLUGS]
     for (let i = 0; i < 1000; i++) {
       generateProblem({ slug: slugs[i % slugs.length] })
+    }
+    expect(Date.now() - start).toBeLessThan(2000)
+  })
+})
+
+describe('generateProblemEn', () => {
+  it('covers all generator slugs', () => {
+    for (const slug of GENERATOR_SLUGS) {
+      const p = generateProblemEn({ slug })
+      expect(p.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+      expect(p.topic_slug).toBe(slug)
+      expect(p.display).toContain('?')
+
+      if (STRING_SLUGS.has(slug)) {
+        expect(p.stringAnswer).toBeTruthy()
+        expect(p.stringChoices).toHaveLength(4)
+        expect(new Set(p.stringChoices).size).toBe(4)
+        expect(p.stringChoices).toContain(p.stringAnswer)
+        expect(p.answer).toBeUndefined()
+        expect(p.choices).toBeUndefined()
+      } else {
+        expect(Number.isFinite(p.answer)).toBe(true)
+        expect(p.choices).toHaveLength(4)
+        expect(p.choices).toContain(p.answer)
+        expect(p.stringChoices).toBeUndefined()
+      }
+    }
+  })
+
+  it('throws on unknown slug', () => {
+    expect(() => generateProblemEn({ slug: 'nope' })).toThrow(/Unknown topic slug/)
+  })
+})
+
+describe('problem quality EN — answer not trivially visible', () => {
+  for (const slug of NUMERIC_SLUGS) {
+    it(`[${slug}] answer never appears verbatim in display numbers`, () => {
+      if (TRIVIAL_ANSWER_WHITELIST.has(slug)) return
+
+      for (let i = 0; i < QUALITY_RUNS; i++) {
+        const p = generateProblemEn({ slug })
+        const numsInDisplay = (p.display.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+        expect(numsInDisplay).not.toContain(p.answer)
+      }
+    })
+  }
+})
+
+describe('problem quality EN — choices are valid', () => {
+  for (const slug of NUMERIC_SLUGS) {
+    it(`[${slug}] choices: 4 unique values, contains answer, negatives per policy`, () => {
+      for (let i = 0; i < QUALITY_RUNS; i++) {
+        const p = generateProblemEn({ slug })
+
+        expect(new Set(p.choices).size).toBe(4)
+        expect(p.choices).toContain(p.answer)
+
+        if (!NEGATIVE_CHOICES_WHITELIST.has(slug)) {
+          const negatives = p.choices.filter((c) => typeof c === 'number' && c < 0)
+          expect(negatives).toHaveLength(0)
+        }
+      }
+    })
+  }
+})
+
+describe('problem quality EN — answer in expected range', () => {
+  for (const slug of NUMERIC_SLUGS) {
+    const range = ANSWER_RANGES[slug]
+    if (!range) throw new Error(`Add ANSWER_RANGES for ${slug}`)
+
+    it(`[${slug}] answer always in [${range.min}, ${range.max}]`, () => {
+      for (let i = 0; i < QUALITY_RUNS; i++) {
+        const p = generateProblemEn({ slug })
+        expect(p.answer).toBeGreaterThanOrEqual(range.min)
+        expect(p.answer).toBeLessThanOrEqual(range.max)
+      }
+    })
+  }
+})
+
+describe('problem quality EN — display is well-formed', () => {
+  for (const slug of NUMERIC_SLUGS) {
+    it(`[${slug}] display contains ? and is non-empty`, () => {
+      for (let i = 0; i < QUALITY_RUNS; i++) {
+        const p = generateProblemEn({ slug })
+        expect(p.display.length).toBeGreaterThan(3)
+        expect(p.display).toContain('?')
+      }
+    })
+
+    it(`[${slug}] always returns valid uuid`, () => {
+      const p = generateProblemEn({ slug })
+      expect(p.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+    })
+  }
+})
+
+describe('problem quality EN — no infinite loops', () => {
+  it('generates 1000 problems across all topics without hanging', () => {
+    const start = Date.now()
+    const slugs = [...GENERATOR_SLUGS]
+    for (let i = 0; i < 1000; i++) {
+      generateProblemEn({ slug: slugs[i % slugs.length] })
     }
     expect(Date.now() - start).toBeLessThan(2000)
   })

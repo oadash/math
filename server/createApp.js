@@ -14,18 +14,37 @@ import { getDatabaseUrlHints } from './db/databaseUrl.js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const defaultClientDist = join(__dirname, '../client/dist')
 const defaultSpaIndex = join(defaultClientDist, 'index.html')
+const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'https://trainmath.fyi',
+  'https://www.trainmath.fyi',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+])
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true
+  const extra = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return DEFAULT_ALLOWED_ORIGINS.has(origin) || extra.includes(origin)
+}
 
 /**
  * @param {object} opts
  * @param {import('pg').Pool | null} opts.pool
  * @param {string} [opts.clientDist]
  * @param {string} [opts.spaIndexPath]
+ * @param {{ ready: boolean, error?: string | null }} [opts.readiness]
  */
 export function createApp(opts) {
   const { pool } = opts
   const clientDist = opts.clientDist ?? defaultClientDist
   const spaIndexPath = opts.spaIndexPath ?? defaultSpaIndex
   const spaReady = existsSync(spaIndexPath)
+  const readiness = opts.readiness ?? { ready: true, error: null }
 
   const app = express()
 
@@ -40,7 +59,9 @@ export function createApp(opts) {
 
   app.use(
     cors({
-      origin: true,
+      origin(origin, cb) {
+        cb(null, isAllowedCorsOrigin(origin))
+      },
       credentials: true,
     }),
   )
@@ -60,6 +81,9 @@ export function createApp(opts) {
   app.get('/health', (_req, res) => {
     res.json({
       ok: true,
+      ready: readiness.ready,
+      migrationsReady: readiness.ready,
+      migrationError: readiness.error ?? null,
       service: 'math-adventure-api',
       databaseConfigured: Boolean(pool),
       buildCommitFile: readBuildCommitFile(),
@@ -88,6 +112,9 @@ export function createApp(opts) {
       }
       return res.json({
         ok: true,
+        ready: readiness.ready,
+        migrationsReady: readiness.ready,
+        migrationError: readiness.error ?? null,
         db: 'up',
         topics,
         deploy: getDeployInfo(),

@@ -24,8 +24,9 @@ if (!databaseUrl) {
 }
 
 const pool = databaseUrl ? new Pool(poolOptionsForUrl(databaseUrl)) : null
+const readiness = { ready: !pool, error: null }
 
-const app = createApp({ pool })
+const app = createApp({ pool, readiness })
 const PORT = Number(process.env.PORT) || 3000
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -45,11 +46,17 @@ function start() {
 
 async function runMigrateAfterListen() {
   if (!pool) return
+  readiness.ready = false
+  readiness.error = null
   try {
     await migrate(pool)
     await getAllTopics(pool)
+    readiness.ready = true
+    readiness.error = null
     console.log('[cache] topics warmed up')
   } catch (err) {
+    readiness.ready = false
+    readiness.error = err?.message ?? 'migration failed'
     console.error('migrate failed (HTTP is up; fix DB and redeploy)', err)
   }
 }

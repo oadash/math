@@ -23,6 +23,11 @@ describe('jwtUtil', () => {
     expect(getJwtSecret()).toBe('test-secret-at-least-32-chars-long!!')
   })
 
+  it('getJwtSecret returns null when JWT_SECRET is missing', () => {
+    delete process.env.JWT_SECRET
+    expect(getJwtSecret()).toBeNull()
+  })
+
   it('round-trip user token', () => {
     const t = signUserToken('550e8400-e29b-41d4-a716-446655440000')
     expect(verifyUserToken(t)).toBe('550e8400-e29b-41d4-a716-446655440000')

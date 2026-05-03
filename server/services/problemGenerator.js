@@ -92,7 +92,6 @@ const generators = {
   addition_10() {
     let a = ri(1, 9)
     let b = ri(1, Math.min(9, 10 - a))
-    if (a + b < 2) return generators.addition_10()
     return { display: `${a} + ${b} = ?`, answer: a + b }
   },
   addition_20() {
@@ -114,7 +113,6 @@ const generators = {
   addition_100() {
     const a = ri(10, 90)
     const maxB = Math.min(90, 100 - a)
-    if (maxB < 10) return generators.addition_100()
     const b = ri(10, maxB)
     return { display: `${a} + ${b} = ?`, answer: a + b }
   },
@@ -388,7 +386,7 @@ const generators = {
       if (d < 0 || d > 30 || [a, b, c, d].includes(x)) continue
       return { display: `${a}x + ${b} = ${c}x + ${d}, x = ?`, answer: x }
     }
-    return generators.linear_equation_3()
+    return { display: `5x + 2 = 2x + 17, x = ?`, answer: 5 }
   },
   ratio_proportion() {
     const solutions = []
@@ -411,19 +409,20 @@ const generators = {
     return { display: `${s.a}/${s.b} = ${s.c}/x, x = ?`, answer: s.x }
   },
   quadratic_simple() {
-    const x1 = ri(1, 8)
-    const x2 = ri(x1 + 1, 9)
-    const bCoeff = -(x1 + x2)
-    const cCoeff = x1 * x2
-    if (x1 === Math.abs(bCoeff) || x1 === cCoeff) {
-      return generators.quadratic_simple()
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const x1 = ri(1, 8)
+      const x2 = ri(x1 + 1, 9)
+      const bCoeff = -(x1 + x2)
+      const cCoeff = x1 * x2
+      if (x1 === Math.abs(bCoeff) || x1 === cCoeff) continue
+      const bStr = bCoeff < 0 ? `${bCoeff}` : `+${bCoeff}`
+      const cStr = cCoeff > 0 ? `+${cCoeff}` : `${cCoeff}`
+      return {
+        display: `x² ${bStr}x ${cStr} = 0, меньший корень?`,
+        answer: x1,
+      }
     }
-    const bStr = bCoeff < 0 ? `${bCoeff}` : `+${bCoeff}`
-    const cStr = cCoeff > 0 ? `+${cCoeff}` : `${cCoeff}`
-    return {
-      display: `x² ${bStr}x ${cStr} = 0, меньший корень?`,
-      answer: x1,
-    }
+    return { display: `x² -7x +12 = 0, меньший корень?`, answer: 3 }
   },
   quadratic_vieta() {
     const x1 = ri(1, 9)
@@ -433,7 +432,7 @@ const generators = {
     const type = ri(0, 2)
 
     if (type === 2 && (b === x1 || b === x2)) {
-      return generators.quadratic_vieta()
+      return { display: `x² + bx + ${c} = 0, корни ${x1} и ${x2}. Чему равно b?`, answer: b }
     }
 
     if (type === 0) {
@@ -445,7 +444,9 @@ const generators = {
     }
 
     if (type === 1) {
-      if (x1 === x2 || x2 === c) return generators.quadratic_vieta()
+      if (x1 === x2 || x2 === c) {
+        return { display: `x² -5x + 6 = 0, один корень = 2. Второй корень?`, answer: 3 }
+      }
       const bx = b < 0 ? `${b}x` : `+${b}x`
       return {
         display: `x² ${bx} + ${c} = 0, один корень = ${x1}. Второй корень?`,
@@ -541,7 +542,7 @@ const generators = {
         d === n1 ||
         d === n2
       ) {
-        return generators.progressions_arithmetic()
+        return { display: `a₂=5, a₅=14. Найди d?`, answer: 3 }
       }
       return {
         display: `a${toSubscript(n1)}=${an1}, a${toSubscript(n2)}=${an2}. Найди d?`,
@@ -551,7 +552,7 @@ const generators = {
 
     const n = ri(4, 8)
     const sn = Math.round((n / 2) * (2 * a1 + (n - 1) * d))
-    if (sn === a1 || sn === d) return generators.progressions_arithmetic()
+    if (sn === a1 || sn === d) return { display: `a₁=2, d=3. S₅ = ?`, answer: 40 }
     return {
       display: `a₁=${a1}, d=${d}. S${toSubscript(n)} = ?`,
       answer: sn,
@@ -663,14 +664,14 @@ const generators = {
     if (type === 0) {
       const n = ri(4, 9)
       const answer = (n * (n - 1)) / 2
-      if (answer === n) return generators.combinatorics_basic()
+      if (answer === n) return { display: `Из 6 книг выбрать 2. Сколько способов?`, answer: 15 }
       return { display: `Из ${n} книг выбрать 2. Сколько способов?`, answer }
     }
 
     if (type === 1) {
       const n = ri(3, 7)
       const answer = n * (n - 1)
-      if (answer === n) return generators.combinatorics_basic()
+      if (answer === n) return { display: `5 картин, 2 места на стене. Сколько вариантов?`, answer: 20 }
       return { display: `${n} картин, 2 места на стене. Сколько вариантов?`, answer }
     }
 

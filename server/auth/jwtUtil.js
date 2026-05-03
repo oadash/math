@@ -3,8 +3,7 @@ import jwt from 'jsonwebtoken'
 export function getJwtSecret() {
   const s = process.env.JWT_SECRET
   if (s && s.length > 0) return s
-  if (process.env.NODE_ENV === 'production') return null
-  return 'dev-only-jwt-secret-change-me'
+  return null
 }
 
 export function signUserToken(userId) {

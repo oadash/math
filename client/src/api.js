@@ -58,10 +58,6 @@ export async function api(path, opts = {}) {
   return res.json()
 }
 
-/**
- * @param {Error & { apiCode?: string }} [err]
- * @param {string} [fallback] when the server sent no message
- */
 export async function pinTopic(slug) {
   return api('/api/topic/pin', { method: 'POST', json: { topicSlug: slug } })
 }

@@ -4,6 +4,8 @@ import { createTestApp } from './helpers.js'
 import { signUserToken } from '../auth/jwtUtil.js'
 
 const userId = 'a0000000-0000-4000-8000-000000000001'
+const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+process.env.JWT_SECRET = 'test-secret-at-least-32-chars-long!!'
 
 describe('GET /api/parent/summary', () => {
   it('returns 401 without Authorization', async () => {
@@ -34,7 +36,7 @@ describe('GET /api/parent/summary', () => {
           }
         }
         if (s.includes('SELECT (now() - interval')) {
-          return { rows: [{ t: new Date('2026-04-26T12:00:00.000Z') }] }
+          return { rows: [{ t: sevenDaysAgo }] }
         }
         return { rows: [] }
       }),

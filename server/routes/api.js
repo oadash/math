@@ -22,6 +22,24 @@ export function createApiRouter(pool) {
     return r
   }
 
+  const restoreAttemptsByIp = new Map()
+  const restoreLimit = { windowMs: 60 * 60 * 1000, maxFailures: 10 }
+
+  function restoreFailureCount(ip, now = Date.now()) {
+    const entry = restoreAttemptsByIp.get(ip)
+    if (!entry || entry.resetAt <= now) return 0
+    return entry.count
+  }
+
+  function recordRestoreFailure(ip, now = Date.now()) {
+    const entry = restoreAttemptsByIp.get(ip)
+    if (!entry || entry.resetAt <= now) {
+      restoreAttemptsByIp.set(ip, { count: 1, resetAt: now + restoreLimit.windowMs })
+      return
+    }
+    entry.count += 1
+  }
+
   r.post('/users/restore', async (req, res) => {
     try {
       if (!getJwtSecret()) {
@@ -33,13 +51,21 @@ export function createApiRouter(pool) {
       const code = String(req.body?.code ?? '').trim().toUpperCase()
       if (!code) return res.status(400).json({ error: 'bad_request' })
 
+      const ip = req.ip ?? 'unknown'
+      if (restoreFailureCount(ip) >= restoreLimit.maxFailures) {
+        return res.status(429).json({ error: 'rate_limited' })
+      }
+
       const result = await pool.query('SELECT id FROM users WHERE shortcode = $1', [code])
       if (result.rows.length === 0) {
+        recordRestoreFailure(ip)
+        console.warn('[restore] failed shortcode restore attempt', { ip })
         return res.status(404).json({
           error: 'not_found',
           message: 'Код не найден. Проверь правильность ввода.',
         })
       }
+      restoreAttemptsByIp.delete(ip)
       const token = signUserToken(result.rows[0].id)
       return res.json({ token })
     } catch (e) {
@@ -226,6 +252,12 @@ export function createApiRouter(pool) {
       )
       if (st.rows.length === 0) {
         return res.status(403).json({ error: 'forbidden', message: 'Нет прогресса по этой теме' })
+      }
+      if (st.rows[0].state === 'locked') {
+        return res.status(403).json({
+          error: 'topic_locked',
+          message: 'Эта тема пока закрыта',
+        })
       }
       await pool.query(`UPDATE users SET pinned_topic_slug = $2 WHERE id = $1`, [req.userId, topicSlug])
       res.json({ ok: true, pinnedSlug: topicSlug })

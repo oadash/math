@@ -50,7 +50,6 @@ const generatorsEn = {
   addition_10() {
     let a = ri(1, 9)
     let b = ri(1, Math.min(9, 10 - a))
-    if (a + b < 2) return generatorsEn.addition_10()
     return { display: `${a} + ${b} = ?`, answer: a + b }
   },
   addition_20() {
@@ -72,7 +71,6 @@ const generatorsEn = {
   addition_100() {
     const a = ri(10, 90)
     const maxB = Math.min(90, 100 - a)
-    if (maxB < 10) return generatorsEn.addition_100()
     const b = ri(10, maxB)
     return { display: `${a} + ${b} = ?`, answer: a + b }
   },
@@ -346,7 +344,7 @@ const generatorsEn = {
       if (d < 0 || d > 30 || [a, b, c, d].includes(x)) continue
       return { display: `${a}x + ${b} = ${c}x + ${d}, x = ?`, answer: x }
     }
-    return generatorsEn.linear_equation_3()
+    return { display: `5x + 2 = 2x + 17, x = ?`, answer: 5 }
   },
   ratio_proportion() {
     const solutions = []
@@ -369,19 +367,20 @@ const generatorsEn = {
     return { display: `${s.a}/${s.b} = ${s.c}/x, x = ?`, answer: s.x }
   },
   quadratic_simple() {
-    const x1 = ri(1, 8)
-    const x2 = ri(x1 + 1, 9)
-    const bCoeff = -(x1 + x2)
-    const cCoeff = x1 * x2
-    if (x1 === Math.abs(bCoeff) || x1 === cCoeff) {
-      return generatorsEn.quadratic_simple()
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const x1 = ri(1, 8)
+      const x2 = ri(x1 + 1, 9)
+      const bCoeff = -(x1 + x2)
+      const cCoeff = x1 * x2
+      if (x1 === Math.abs(bCoeff) || x1 === cCoeff) continue
+      const bStr = bCoeff < 0 ? `${bCoeff}` : `+${bCoeff}`
+      const cStr = cCoeff > 0 ? `+${cCoeff}` : `${cCoeff}`
+      return {
+        display: `x² ${bStr}x ${cStr} = 0, smaller root?`,
+        answer: x1,
+      }
     }
-    const bStr = bCoeff < 0 ? `${bCoeff}` : `+${bCoeff}`
-    const cStr = cCoeff > 0 ? `+${cCoeff}` : `${cCoeff}`
-    return {
-      display: `x² ${bStr}x ${cStr} = 0, smaller root?`,
-      answer: x1,
-    }
+    return { display: `x² -7x +12 = 0, smaller root?`, answer: 3 }
   },
   quadratic_vieta() {
     const x1 = ri(1, 9)
@@ -391,7 +390,7 @@ const generatorsEn = {
     const type = ri(0, 2)
 
     if (type === 2 && (b === x1 || b === x2)) {
-      return generatorsEn.quadratic_vieta()
+      return { display: `x² + bx + ${c} = 0, roots ${x1} and ${x2}. What is b?`, answer: b }
     }
 
     if (type === 0) {
@@ -403,7 +402,9 @@ const generatorsEn = {
     }
 
     if (type === 1) {
-      if (x1 === x2 || x2 === c) return generatorsEn.quadratic_vieta()
+      if (x1 === x2 || x2 === c) {
+        return { display: `x² -5x + 6 = 0, one root = 2. The other root?`, answer: 3 }
+      }
       const bx = b < 0 ? `${b}x` : `+${b}x`
       return {
         display: `x² ${bx} + ${c} = 0, one root = ${x1}. The other root?`,
@@ -499,7 +500,7 @@ const generatorsEn = {
         d === n1 ||
         d === n2
       ) {
-        return generatorsEn.progressions_arithmetic()
+        return { display: `a₂=5, a₅=14. Find d?`, answer: 3 }
       }
       return {
         display: `a${toSubscript(n1)}=${an1}, a${toSubscript(n2)}=${an2}. Find d?`,
@@ -509,7 +510,7 @@ const generatorsEn = {
 
     const n = ri(4, 8)
     const sn = Math.round((n / 2) * (2 * a1 + (n - 1) * d))
-    if (sn === a1 || sn === d) return generatorsEn.progressions_arithmetic()
+    if (sn === a1 || sn === d) return { display: `a₁=2, d=3. S₅ = ?`, answer: 40 }
     return {
       display: `a₁=${a1}, d=${d}. S${toSubscript(n)} = ?`,
       answer: sn,
@@ -621,14 +622,14 @@ const generatorsEn = {
     if (type === 0) {
       const n = ri(4, 9)
       const answer = (n * (n - 1)) / 2
-      if (answer === n) return generatorsEn.combinatorics_basic()
+      if (answer === n) return { display: `Choose 2 from 6 books. How many ways?`, answer: 15 }
       return { display: `Choose 2 from ${n} books. How many ways?`, answer }
     }
 
     if (type === 1) {
       const n = ri(3, 7)
       const answer = n * (n - 1)
-      if (answer === n) return generatorsEn.combinatorics_basic()
+      if (answer === n) return { display: `5 pictures, 2 spots on the wall. How many arrangements?`, answer: 20 }
       return { display: `${n} pictures, 2 spots on the wall. How many arrangements?`, answer }
     }
 

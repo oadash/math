@@ -6,7 +6,11 @@ export function createSitemapRouter(pool) {
 
   r.get('/sitemap.xml', async (req, res) => {
     if (!pool) {
-      res.status(503).type('application/xml').send('<?xml version="1.0"?><urlset/>')
+      res
+        .status(503)
+        .set('Retry-After', '300')
+        .type('application/xml')
+        .send('<?xml version="1.0"?><urlset/>')
       return
     }
     const topics = await getAllTopics(pool)

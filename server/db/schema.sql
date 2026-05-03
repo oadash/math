@@ -1,5 +1,7 @@
 -- Math Adventure — core schema (PostgreSQL)
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TYPE topic_progress_state AS ENUM (
   'locked',
   'introducing',

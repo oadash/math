@@ -8,6 +8,7 @@ const userId = 'a0000000-0000-4000-8000-000000000001'
 
 describe('HTTP app', () => {
   beforeEach(() => {
+    process.env.JWT_SECRET = 'test-secret-at-least-32-chars-long!!'
     invalidateTopicCache()
   })
 
@@ -15,9 +16,47 @@ describe('HTTP app', () => {
     const app = createTestApp(null)
     const res = await request(app).get('/health').expect(200)
     expect(res.body.ok).toBe(true)
+    expect(res.body.ready).toBe(true)
+    expect(res.body.migrationsReady).toBe(true)
+    expect(res.body.migrationError).toBeNull()
     expect(res.body.service).toBe('math-adventure-api')
     expect(res.body.databaseConfigured).toBe(false)
     expect(res.headers['x-api-revision']).toBeDefined()
+  })
+
+  it('GET /health exposes readiness false', async () => {
+    const app = createTestApp(null, { readiness: { ready: false, error: 'migrating' } })
+    const res = await request(app).get('/health').expect(200)
+    expect(res.body.ok).toBe(true)
+    expect(res.body.ready).toBe(false)
+    expect(res.body.migrationsReady).toBe(false)
+    expect(res.body.migrationError).toBe('migrating')
+  })
+
+  it('GET /health exposes readiness true', async () => {
+    const app = createTestApp(null, { readiness: { ready: true, error: null } })
+    const res = await request(app).get('/health').expect(200)
+    expect(res.body.ready).toBe(true)
+    expect(res.body.migrationsReady).toBe(true)
+    expect(res.body.migrationError).toBeNull()
+  })
+
+  it('GET /health/db includes readiness', async () => {
+    const mockPool = {
+      query: vi.fn(async (sql) => {
+        if (String(sql).includes('count(*)::int AS n FROM topics')) {
+          return { rows: [{ n: 42 }] }
+        }
+        return { rows: [] }
+      }),
+    }
+    const app = createTestApp(mockPool, { readiness: { ready: false, error: 'migrating' } })
+    const res = await request(app).get('/health/db').expect(200)
+    expect(res.body.ready).toBe(false)
+    expect(res.body.migrationsReady).toBe(false)
+    expect(res.body.migrationError).toBe('migrating')
+    expect(res.body.db).toBe('up')
+    expect(res.body.topics).toBe(42)
   })
 
   it('GET /api/me without token returns 401 when DB pool exists', async () => {
@@ -45,7 +84,7 @@ describe('HTTP app', () => {
     await request(app).post('/api/topic/pin').send({ topicSlug: 'addition_10' }).expect(401)
   })
 
-  it('POST /api/topic/pin allows locked topic (самостоятельная практика)', async () => {
+  it('POST /api/topic/pin rejects locked topic', async () => {
     const token = signUserToken(userId)
     const mockPool = {
       query: vi.fn(async (sql) => {
@@ -78,8 +117,12 @@ describe('HTTP app', () => {
       .post('/api/topic/pin')
       .set('Authorization', `Bearer ${token}`)
       .send({ topicSlug: 'fractions_simple' })
-      .expect(200)
-    expect(res.body.ok).toBe(true)
+      .expect(403)
+    expect(res.body.error).toBe('topic_locked')
+    const updateCall = mockPool.query.mock.calls.find((c) =>
+      String(c[0]).includes('UPDATE users SET pinned_topic_slug'),
+    )
+    expect(updateCall).toBeUndefined()
   })
 
   it('POST /api/topic/pin returns 403 without user_topic_state row', async () => {
