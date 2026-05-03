@@ -5,6 +5,7 @@ import 'dotenv/config'
 import pg from 'pg'
 import { getDatabaseUrl } from './databaseUrl.js'
 import { poolOptionsForUrl } from './poolConfig.js'
+import { invalidateTopicCache } from '../services/topicCache.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -30,6 +31,75 @@ export async function migrate(pool) {
   const seed = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8')
   await pool.query(seed)
   console.log('migrate: seed applied')
+
+  await pool.query(`
+    ALTER TABLE topics
+    ADD COLUMN IF NOT EXISTS title_en TEXT
+  `)
+  console.log('migrate: topics.title_en ensured')
+
+  await pool.query(`
+    UPDATE topics AS t SET title_en = v.en
+    FROM (VALUES
+      ('addition_10', 'Addition up to 10'),
+      ('addition_20', 'Addition up to 20'),
+      ('subtraction_10', 'Subtraction up to 10'),
+      ('addition_100', 'Addition up to 100'),
+      ('subtraction_20', 'Subtraction up to 20'),
+      ('multiplication_2', 'Multiply by 2'),
+      ('multiplication_3', 'Multiply by 3'),
+      ('multiplication_5', 'Multiply by 5'),
+      ('multiplication_10', 'Multiply by 10'),
+      ('multiplication_full', 'Multiplication table'),
+      ('division_simple', 'Simple division'),
+      ('multiplication_big', 'Large number multiplication'),
+      ('division_remainder', 'Division with remainder'),
+      ('fractions_simple', 'Simple fractions'),
+      ('fractions_compare', 'Comparing fractions'),
+      ('fractions_add_sub', 'Adding fractions'),
+      ('fractions_add_sub_diff', 'Fractions with different denominators'),
+      ('fractions_multiply', 'Multiplying fractions'),
+      ('fractions_divide', 'Dividing fractions'),
+      ('decimals_basic', 'Decimal numbers'),
+      ('decimals_add_sub', 'Adding decimals'),
+      ('decimals_multiply', 'Multiplying decimals'),
+      ('percent_basic', 'Percentages'),
+      ('percent_reverse', 'Reverse percentage problems'),
+      ('negative_numbers', 'Negative numbers'),
+      ('integers_add_sub', 'Integer addition & subtraction'),
+      ('integers_multiply', 'Integer multiplication'),
+      ('powers_basic', 'Powers'),
+      ('square_root_basic', 'Square roots'),
+      ('linear_equation_1', 'Linear equations: x + a = b'),
+      ('linear_equation_2', 'Linear equations: ax + b = c'),
+      ('linear_equation_3', 'Linear equations: ax + b = cx + d'),
+      ('ratio_proportion', 'Ratios & proportions'),
+      ('quadratic_simple', 'Quadratic equations'),
+      ('quadratic_vieta', 'Vieta''s formulas'),
+      ('systems_linear_2', 'Systems of equations'),
+      ('inequalities_linear', 'Linear inequalities'),
+      ('geometry_area_basic', 'Areas of shapes'),
+      ('progressions_arithmetic', 'Arithmetic progressions'),
+      ('progressions_geometric', 'Geometric progressions'),
+      ('trigonometry_basic', 'Trigonometry: basics'),
+      ('logarithms_basic', 'Logarithms: basics'),
+      ('logarithms_equations', 'Logarithmic equations'),
+      ('exponential_equations', 'Exponential equations'),
+      ('trigonometry_identities', 'Trigonometric identities'),
+      ('trigonometry_equations', 'Trigonometric equations'),
+      ('derivatives_basic', 'Derivatives: basics'),
+      ('combinatorics_basic', 'Combinatorics'),
+      ('probability_basic', 'Probability')
+    ) AS v(slug, en)
+    WHERE t.slug = v.slug
+  `)
+  console.log('migrate: topics.title_en values updated')
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS shortcode TEXT UNIQUE
+  `)
+  console.log('migrate: users.shortcode ensured')
 
   await pool.query(`
     ALTER TABLE users
@@ -73,6 +143,9 @@ export async function migrate(pool) {
     RETURNING user_id
   `)
   console.log(`migrate: user_topic_state backfill inserted ${backfill.rowCount} row(s)`)
+
+  invalidateTopicCache()
+  console.log('migrate: topic cache invalidated')
 }
 
 async function runCli() {

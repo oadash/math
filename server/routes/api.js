@@ -2,8 +2,11 @@ import express from 'express'
 import { requireUser } from '../middleware/auth.js'
 import { getJwtSecret, signUserToken, signProblemToken, verifyProblemToken } from '../auth/jwtUtil.js'
 import { generateProblem } from '../services/problemGenerator.js'
+import { generateProblemEn } from '../services/problemGeneratorEn.js'
 import { getStartSlug } from '../services/gradeMapping.js'
 import { scheduleNextTopic, runPromotionRules } from '../services/spiralScheduler.js'
+import { getAllTopics } from '../services/topicCache.js'
+import { generateShortcode } from '../services/shortcode.js'
 
 export function createApiRouter(pool) {
   const r = express.Router()
@@ -18,6 +21,32 @@ export function createApiRouter(pool) {
     )
     return r
   }
+
+  r.post('/users/restore', async (req, res) => {
+    try {
+      if (!getJwtSecret()) {
+        return res.status(500).json({
+          error: 'config',
+          message: 'Задайте переменную окружения JWT_SECRET',
+        })
+      }
+      const code = String(req.body?.code ?? '').trim().toUpperCase()
+      if (!code) return res.status(400).json({ error: 'bad_request' })
+
+      const result = await pool.query('SELECT id FROM users WHERE shortcode = $1', [code])
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          error: 'not_found',
+          message: 'Код не найден. Проверь правильность ввода.',
+        })
+      }
+      const token = signUserToken(result.rows[0].id)
+      return res.json({ token })
+    } catch (e) {
+      console.error(e)
+      return res.status(500).json({ error: 'server_error' })
+    }
+  })
 
   r.post('/users', async (req, res) => {
     try {
@@ -50,14 +79,14 @@ export function createApiRouter(pool) {
           [name, age, grade],
         )
         const userId = u.rows[0].id
-        const topics = await client.query(`SELECT id, slug, sort_order FROM topics ORDER BY sort_order`)
+        const topics = await getAllTopics(pool)
         const startSlug = getStartSlug(grade)
-        let startTopic = topics.rows.find((t) => t.slug === startSlug)
+        let startTopic = topics.find((t) => t.slug === startSlug)
         if (!startTopic) {
-          startTopic = topics.rows.find((t) => t.slug === 'addition_10') ?? topics.rows[0]
+          startTopic = topics.find((t) => t.slug === 'addition_10') ?? topics[0]
         }
         const startOrder = startTopic.sort_order
-        for (const t of topics.rows) {
+        for (const t of topics) {
           let state
           if (t.sort_order < startOrder) state = 'mastered'
           else if (t.slug === startTopic.slug) state = 'introducing'
@@ -67,9 +96,26 @@ export function createApiRouter(pool) {
             [userId, t.id, state],
           )
         }
+
+        let shortcode = null
+        let attempts = 0
+        while (!shortcode && attempts < 10) {
+          const candidate = generateShortcode(name)
+          try {
+            await client.query('UPDATE users SET shortcode = $1 WHERE id = $2', [candidate, userId])
+            shortcode = candidate
+          } catch (e) {
+            if (e.code === '23505') {
+              attempts++
+              continue
+            }
+            throw e
+          }
+        }
+
         await client.query('COMMIT')
         const token = signUserToken(userId)
-        return res.status(201).json({ token, user: u.rows[0] })
+        return res.status(201).json({ token, shortcode, user: u.rows[0] })
       } catch (e) {
         await client.query('ROLLBACK')
         throw e
@@ -87,7 +133,7 @@ export function createApiRouter(pool) {
       const u = await pool.query(`SELECT id, name, age, grade, created_at FROM users WHERE id = $1`, [req.userId])
       if (u.rows.length === 0) return res.status(404).json({ error: 'not_found' })
       const states = await pool.query(
-        `SELECT t.slug, t.title_ru, t.sort_order, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts
+        `SELECT t.slug, t.title_ru, t.title_en, t.sort_order, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts
          FROM user_topic_state uts
          JOIN topics t ON t.id = uts.topic_id
          WHERE uts.user_id = $1
@@ -108,7 +154,7 @@ export function createApiRouter(pool) {
       if (u.rows.length === 0) return res.status(404).json({ error: 'not_found' })
 
       const topics = await pool.query(
-        `SELECT t.slug, t.title_ru, t.sort_order,
+        `SELECT t.slug, t.title_ru, t.title_en, t.sort_order,
             COALESCE(COUNT(a.id), 0)::int AS attempts,
             COALESCE(SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), 0)::int AS correct
          FROM topics t
@@ -116,7 +162,7 @@ export function createApiRouter(pool) {
            ON a.topic_id = t.id
           AND a.user_id = $1
           AND a.created_at >= now() - interval '7 days'
-         GROUP BY t.id, t.slug, t.title_ru, t.sort_order
+         GROUP BY t.id, t.slug, t.title_ru, t.title_en, t.sort_order
          ORDER BY t.sort_order`,
         [req.userId],
       )
@@ -131,6 +177,7 @@ export function createApiRouter(pool) {
         return {
           slug: row.slug,
           titleRu: row.title_ru,
+          titleEn: row.title_en,
           attempts: row.attempts,
           correct: row.correct,
           percentCorrect,
@@ -164,11 +211,12 @@ export function createApiRouter(pool) {
       if (!topicSlug) {
         return res.status(400).json({ error: 'bad_request', message: 'Нужен topicSlug' })
       }
-      const topicRow = await pool.query(`SELECT id FROM topics WHERE slug = $1`, [topicSlug])
-      if (topicRow.rows.length === 0) {
+      const topics = await getAllTopics(pool)
+      const topicRow = topics.find((t) => t.slug === topicSlug)
+      if (!topicRow) {
         return res.status(400).json({ error: 'unknown_topic', message: 'Тема не найдена' })
       }
-      const topicId = topicRow.rows[0].id
+      const topicId = topicRow.id
       const st = await pool.query(
         `SELECT state FROM user_topic_state WHERE user_id = $1 AND topic_id = $2`,
         [req.userId, topicId],
@@ -197,7 +245,7 @@ export function createApiRouter(pool) {
   r.get('/progress', requireUser, async (req, res) => {
     try {
       const states = await pool.query(
-        `SELECT t.slug, t.title_ru, t.sort_order, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts
+        `SELECT t.slug, t.title_ru, t.title_en, t.sort_order, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts
          FROM user_topic_state uts
          JOIN topics t ON t.id = uts.topic_id
          WHERE uts.user_id = $1
@@ -217,7 +265,9 @@ export function createApiRouter(pool) {
       if (!picked) return res.status(404).json({ error: 'no_topic' })
       const pinMeta = await pool.query(`SELECT pinned_topic_slug FROM users WHERE id = $1`, [req.userId])
       const pinnedTopicSlug = pinMeta.rows[0]?.pinned_topic_slug ?? null
-      const prob = generateProblem(picked.topic)
+      const lang = req.query.lang === 'en' ? 'en' : 'ru'
+      const prob =
+        lang === 'en' ? generateProblemEn(picked.topic) : generateProblem(picked.topic)
       const problemToken = signProblemToken({
         problemId: prob.id,
         topicSlug: prob.topic_slug,
@@ -234,6 +284,7 @@ export function createApiRouter(pool) {
         topic: {
           slug: picked.topic.slug,
           title_ru: picked.topic.title_ru,
+          title_en: picked.topic.title_en ?? null,
           state: picked.topic.state,
         },
       })
@@ -257,9 +308,10 @@ export function createApiRouter(pool) {
         return res.status(400).json({ error: 'bad_token', message: 'Просрочен или битый problemToken' })
       }
       const { problemId, topicSlug, answer, stringAnswer } = payload
-      const topicRow = await pool.query(`SELECT id FROM topics WHERE slug = $1`, [topicSlug])
-      if (topicRow.rows.length === 0) return res.status(400).json({ error: 'unknown_topic' })
-      const topicId = topicRow.rows[0].id
+      const topics = await getAllTopics(pool)
+      const topicRow = topics.find((t) => t.slug === topicSlug)
+      if (!topicRow) return res.status(400).json({ error: 'unknown_topic' })
+      const topicId = topicRow.id
 
       const hasString = stringAnswer != null && stringAnswer !== ''
       let correct
@@ -337,7 +389,7 @@ export function createApiRouter(pool) {
       await runPromotionRules(pool, req.userId)
 
       const updated = await pool.query(
-        `SELECT t.slug, t.title_ru, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts
+        `SELECT t.slug, t.title_ru, t.title_en, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts
          FROM user_topic_state uts
          JOIN topics t ON t.id = uts.topic_id
          WHERE uts.user_id = $1 AND t.slug = $2`,

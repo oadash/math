@@ -72,7 +72,7 @@ export async function runPromotionRules(pool, userId) {
 
 async function pickWeightedTopicRow(pool, userId) {
   const r = await pool.query(
-    `SELECT uts.state, t.id, t.slug, t.title_ru, t.sort_order
+    `SELECT uts.state, t.id, t.slug, t.title_ru, t.title_en, t.sort_order
      FROM user_topic_state uts
      JOIN topics t ON t.id = uts.topic_id
      WHERE uts.user_id = $1
@@ -87,7 +87,7 @@ async function pickWeightedTopicRow(pool, userId) {
   }))
 
   const peekR = await pool.query(
-    `SELECT t.id, t.slug, t.title_ru, t.sort_order
+    `SELECT t.id, t.slug, t.title_ru, t.title_en, t.sort_order
      FROM topics t
      JOIN user_topic_state prereq_uts
        ON prereq_uts.topic_id = t.prerequisite_topic_id
@@ -118,7 +118,7 @@ async function pickWeightedTopicRow(pool, userId) {
 }
 
 /**
- * @returns {Promise<{ topic: { id: string, slug: string, title_ru: string, state: string, sort_order: number }, isFirstIntroduction: boolean, isPeek?: boolean } | null>}
+ * @returns {Promise<{ topic: { id: string, slug: string, title_ru: string, title_en: string | null, state: string, sort_order: number }, isFirstIntroduction: boolean, isPeek?: boolean } | null>}
  */
 export async function scheduleNextTopic(pool, userId) {
   await runPromotionRules(pool, userId)
@@ -128,7 +128,7 @@ export async function scheduleNextTopic(pool, userId) {
 
   if (pinnedSlug) {
     const pinned = await pool.query(
-      `SELECT uts.state, t.id, t.slug, t.title_ru, t.sort_order
+      `SELECT uts.state, t.id, t.slug, t.title_ru, t.title_en, t.sort_order
        FROM user_topic_state uts
        JOIN topics t ON t.id = uts.topic_id
        WHERE uts.user_id = $1 AND t.slug = $2`,
@@ -141,6 +141,7 @@ export async function scheduleNextTopic(pool, userId) {
           id: row.id,
           slug: row.slug,
           title_ru: row.title_ru,
+          title_en: row.title_en ?? null,
           state: row.state,
           sort_order: row.sort_order,
         },
@@ -159,6 +160,7 @@ export async function scheduleNextTopic(pool, userId) {
       id: row.id,
       slug: row.slug,
       title_ru: row.title_ru,
+      title_en: row.title_en ?? null,
       state: row.state,
       sort_order: row.sort_order,
     },

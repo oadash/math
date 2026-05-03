@@ -1,11 +1,16 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 import { createTestApp } from './helpers.js'
 import { signUserToken } from '../auth/jwtUtil.js'
+import { invalidateTopicCache } from '../services/topicCache.js'
 
 const userId = 'a0000000-0000-4000-8000-000000000001'
 
 describe('HTTP app', () => {
+  beforeEach(() => {
+    invalidateTopicCache()
+  })
+
   it('GET /health returns ok', async () => {
     const app = createTestApp(null)
     const res = await request(app).get('/health').expect(200)
@@ -45,8 +50,19 @@ describe('HTTP app', () => {
     const mockPool = {
       query: vi.fn(async (sql) => {
         const s = String(sql)
-        if (s.includes('FROM topics WHERE slug')) {
-          return { rows: [{ id: '11111111-1111-4111-8111-111111111111' }] }
+        if (s.includes('FROM topics') && s.includes('ORDER BY sort_order')) {
+          return {
+            rows: [
+              {
+                id: '11111111-1111-4111-8111-111111111111',
+                slug: 'fractions_simple',
+                title_ru: 'Дроби',
+                title_en: 'Fractions',
+                prerequisite_topic_id: null,
+                sort_order: 10,
+              },
+            ],
+          }
         }
         if (s.includes('FROM user_topic_state WHERE')) {
           return { rows: [{ state: 'locked' }] }
@@ -71,8 +87,19 @@ describe('HTTP app', () => {
     const mockPool = {
       query: vi.fn(async (sql) => {
         const s = String(sql)
-        if (s.includes('FROM topics WHERE slug')) {
-          return { rows: [{ id: '11111111-1111-4111-8111-111111111111' }] }
+        if (s.includes('FROM topics') && s.includes('ORDER BY sort_order')) {
+          return {
+            rows: [
+              {
+                id: '11111111-1111-4111-8111-111111111111',
+                slug: 'addition_10',
+                title_ru: 'Сложение',
+                title_en: 'Addition',
+                prerequisite_topic_id: null,
+                sort_order: 1,
+              },
+            ],
+          }
         }
         if (s.includes('FROM user_topic_state WHERE')) {
           return { rows: [] }

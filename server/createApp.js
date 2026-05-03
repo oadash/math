@@ -7,6 +7,8 @@ import cookieParser from 'cookie-parser'
 import { API_REVISION, getDeployInfo } from './deployInfo.js'
 import { readBuildCommitFile } from './buildCommit.js'
 import { createApiRouter } from './routes/api.js'
+import { createSitemapRouter } from './routes/sitemap.js'
+import { createPracticeRouter } from './routes/practice.js'
 import { getDatabaseUrlHints } from './db/databaseUrl.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -46,6 +48,10 @@ export function createApp(opts) {
   app.use(cookieParser())
 
   app.use('/api', createApiRouter(pool))
+  app.use(createSitemapRouter(pool))
+  if (pool) {
+    app.use(createPracticeRouter(pool))
+  }
 
   app.get('/debug/build-commit', (_req, res) => {
     res.type('text/plain').send(readBuildCommitFile() ?? 'NO_FILE_NOT_DOCKER_OR_LOCAL')
@@ -109,7 +115,11 @@ export function createApp(opts) {
       if (
         req.path.startsWith('/api') ||
         req.path.startsWith('/health') ||
-        req.path.startsWith('/debug')
+        req.path.startsWith('/debug') ||
+        req.path.startsWith('/practice') ||
+        req.path.startsWith('/en/practice') ||
+        req.path === '/sitemap.xml' ||
+        req.path === '/robots.txt'
       ) {
         return next()
       }

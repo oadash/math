@@ -215,6 +215,52 @@ body {
   margin-top: 1rem;
 }
 
+.shortcode-display {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  background: #e8e4ff;
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+  text-align: center;
+  margin: 1rem 0 1.5rem;
+  user-select: all;
+}
+
+.lang-toggle {
+  background: none;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+  min-height: 40px;
+  min-width: 3rem;
+  touch-action: manipulation;
+  align-self: center;
+}
+
+.parent-link-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e8e8e8;
+  text-align: center;
+}
+
+.parent-link-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.parent-link-btn {
+  font-size: 0.95rem;
+}
+
 /* ——— Game ——— */
 .game {
   position: relative;

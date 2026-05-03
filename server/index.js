@@ -9,6 +9,7 @@ import { poolOptionsForUrl } from './db/poolConfig.js'
 import { API_REVISION } from './deployInfo.js'
 import { readBuildCommitFile } from './buildCommit.js'
 import { createApp } from './createApp.js'
+import { getAllTopics } from './services/topicCache.js'
 
 const { Pool } = pg
 
@@ -46,6 +47,8 @@ async function runMigrateAfterListen() {
   if (!pool) return
   try {
     await migrate(pool)
+    await getAllTopics(pool)
+    console.log('[cache] topics warmed up')
   } catch (err) {
     console.error('migrate failed (HTTP is up; fix DB and redeploy)', err)
   }

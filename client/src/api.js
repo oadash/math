@@ -70,16 +70,25 @@ export async function unpinTopic() {
   return api('/api/topic/unpin', { method: 'POST' })
 }
 
-export function friendlyApiMessage(err, fallback = 'Что-то пошло не так') {
-  if (!err) return fallback
+export async function restoreByCode(code) {
+  return api('/api/users/restore', { method: 'POST', json: { code } })
+}
+
+/**
+ * @param {Error & { apiCode?: string }} [err]
+ * @param {string} [fallback]
+ * @param {(key: string) => string} [t] i18n lookup for db_error_hint / error_generic
+ */
+export function friendlyApiMessage(err, fallback, t) {
+  const fb = fallback ?? (t ? t('error_generic') : 'Что-то пошло не так')
+  if (!err) return fb
   if (
     err.apiCode === 'database_unavailable' ||
     /database_unavailable/i.test(String(err.message))
   ) {
-    return (
-      'Сайт не может связаться с базой данных, поэтому зайти или поиграть пока нельзя. ' +
-      'Попроси взрослого проверить хостинг: у сервиса с этим адресом должна быть переменная DATABASE_URL.'
-    )
+    return t
+      ? t('db_error_hint')
+      : 'Сайт не может связаться с базой данных, поэтому зайти или поиграть пока нельзя. Попроси взрослого проверить хостинг: у сервиса с этим адресом должна быть переменная DATABASE_URL.'
   }
-  return err.message || fallback
+  return err.message || fb
 }

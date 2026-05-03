@@ -25,6 +25,7 @@ describe('GET /api/parent/summary', () => {
               {
                 slug: 'addition_10',
                 title_ru: 'Сложение до 10',
+                title_en: 'Addition up to 10',
                 sort_order: 1,
                 attempts: 4,
                 correct: 3,
@@ -51,6 +52,7 @@ describe('GET /api/parent/summary', () => {
     expect(res.body.byTopic[0]).toMatchObject({
       slug: 'addition_10',
       titleRu: 'Сложение до 10',
+      titleEn: 'Addition up to 10',
       attempts: 4,
       correct: 3,
       percentCorrect: 75,
