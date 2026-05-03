@@ -4,12 +4,23 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import pg from 'pg'
 import { migrate } from './db/migrate.js'
+import { getDatabaseUrl } from './db/databaseUrl.js'
 
 const { Pool } = pg
 
-const pool = process.env.DATABASE_URL
+const databaseUrl = getDatabaseUrl()
+
+if (!databaseUrl) {
+  console.warn(
+    '[db] DATABASE_URL is missing or empty at startup. Add it in Railway → server service → Variables, then redeploy.',
+  )
+} else {
+  console.log('[db] Database URL is set')
+}
+
+const pool = databaseUrl
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: databaseUrl,
       ssl:
         process.env.PGSSLMODE === 'require' || process.env.NODE_ENV === 'production'
           ? { rejectUnauthorized: false }
