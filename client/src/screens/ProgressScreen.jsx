@@ -81,22 +81,20 @@ export default function ProgressScreen() {
                     {t.correct_streak > 0 ? ` · серия ${t.correct_streak}` : ''}
                   </span>
                 ) : null}
-                {t.state !== 'locked' ? (
-                  <button
-                    type="button"
-                    className="btn btn--ghost topic-tree__train-btn"
-                    onClick={async () => {
-                      try {
-                        await pinTopic(t.slug)
-                        navigate('/play')
-                      } catch (e) {
-                        setErr(friendlyApiMessage(e, 'Не удалось закрепить тему'))
-                      }
-                    }}
-                  >
-                    Тренировать
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="btn btn--ghost topic-tree__train-btn"
+                  onClick={async () => {
+                    try {
+                      await pinTopic(t.slug)
+                      navigate('/play')
+                    } catch (e) {
+                      setErr(friendlyApiMessage(e, 'Не удалось закрепить тему'))
+                    }
+                  }}
+                >
+                  Тренировать
+                </button>
               </div>
             </li>
           )

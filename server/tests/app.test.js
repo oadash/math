@@ -40,7 +40,7 @@ describe('HTTP app', () => {
     await request(app).post('/api/topic/pin').send({ topicSlug: 'addition_10' }).expect(401)
   })
 
-  it('POST /api/topic/pin returns 403 when topic is locked', async () => {
+  it('POST /api/topic/pin allows locked topic (самостоятельная практика)', async () => {
     const token = signUserToken(userId)
     const mockPool = {
       query: vi.fn(async (sql) => {
@@ -51,6 +51,9 @@ describe('HTTP app', () => {
         if (s.includes('FROM user_topic_state WHERE')) {
           return { rows: [{ state: 'locked' }] }
         }
+        if (s.includes('UPDATE users SET pinned_topic_slug')) {
+          return { rowCount: 1, rows: [] }
+        }
         return { rows: [] }
       }),
     }
@@ -58,9 +61,31 @@ describe('HTTP app', () => {
     const res = await request(app)
       .post('/api/topic/pin')
       .set('Authorization', `Bearer ${token}`)
+      .send({ topicSlug: 'fractions_simple' })
+      .expect(200)
+    expect(res.body.ok).toBe(true)
+  })
+
+  it('POST /api/topic/pin returns 403 without user_topic_state row', async () => {
+    const token = signUserToken(userId)
+    const mockPool = {
+      query: vi.fn(async (sql) => {
+        const s = String(sql)
+        if (s.includes('FROM topics WHERE slug')) {
+          return { rows: [{ id: '11111111-1111-4111-8111-111111111111' }] }
+        }
+        if (s.includes('FROM user_topic_state WHERE')) {
+          return { rows: [] }
+        }
+        return { rows: [] }
+      }),
+    }
+    const app = createTestApp(mockPool)
+    await request(app)
+      .post('/api/topic/pin')
+      .set('Authorization', `Bearer ${token}`)
       .send({ topicSlug: 'addition_10' })
       .expect(403)
-    expect(res.body.error).toBe('forbidden')
   })
 
   it('POST /api/topic/unpin clears pin with JWT', async () => {

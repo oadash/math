@@ -131,7 +131,7 @@ export async function scheduleNextTopic(pool, userId) {
       `SELECT uts.state, t.id, t.slug, t.title_ru, t.sort_order
        FROM user_topic_state uts
        JOIN topics t ON t.id = uts.topic_id
-       WHERE uts.user_id = $1 AND t.slug = $2 AND uts.state != 'locked'`,
+       WHERE uts.user_id = $1 AND t.slug = $2`,
       [userId, pinnedSlug],
     )
     if (pinned.rows.length > 0) {
@@ -144,7 +144,7 @@ export async function scheduleNextTopic(pool, userId) {
           state: row.state,
           sort_order: row.sort_order,
         },
-        isFirstIntroduction: false,
+        isFirstIntroduction: row.state === 'introducing' || row.state === 'locked',
         isPeek: false,
       }
     }

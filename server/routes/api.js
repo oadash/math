@@ -173,8 +173,8 @@ export function createApiRouter(pool) {
         `SELECT state FROM user_topic_state WHERE user_id = $1 AND topic_id = $2`,
         [req.userId, topicId],
       )
-      if (st.rows.length === 0 || st.rows[0].state === 'locked') {
-        return res.status(403).json({ error: 'forbidden', message: 'Тема ещё закрыта' })
+      if (st.rows.length === 0) {
+        return res.status(403).json({ error: 'forbidden', message: 'Нет прогресса по этой теме' })
       }
       await pool.query(`UPDATE users SET pinned_topic_slug = $2 WHERE id = $1`, [req.userId, topicSlug])
       res.json({ ok: true, pinnedSlug: topicSlug })
