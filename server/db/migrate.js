@@ -59,6 +59,20 @@ export async function migrate(pool) {
     END $$
   `)
   console.log('migrate: answers.answer_given TEXT ensured')
+
+  /** Старые пользователи созданы до появления новых тем в seed — у них нет строк uts. */
+  const backfill = await pool.query(`
+    INSERT INTO user_topic_state (user_id, topic_id, state)
+    SELECT u.id, t.id, 'locked'::topic_progress_state
+    FROM users u
+    CROSS JOIN topics t
+    WHERE NOT EXISTS (
+      SELECT 1 FROM user_topic_state uts
+      WHERE uts.user_id = u.id AND uts.topic_id = t.id
+    )
+    RETURNING user_id
+  `)
+  console.log(`migrate: user_topic_state backfill inserted ${backfill.rowCount} row(s)`)
 }
 
 async function runCli() {
