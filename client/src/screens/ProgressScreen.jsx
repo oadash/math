@@ -28,14 +28,18 @@ export default function ProgressScreen() {
   const { lang } = useLang()
   const t = useT()
   const [data, setData] = useState(null)
+  const [shortcode, setShortcode] = useState(undefined)
   const [err, setErr] = useState('')
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await api('/api/progress')
-        if (!cancelled) setData(res)
+        const [progressRes, meRes] = await Promise.all([api('/api/progress'), api('/api/me')])
+        if (!cancelled) {
+          setData(progressRes)
+          setShortcode(meRes.user?.shortcode ?? null)
+        }
       } catch (e) {
         if (!cancelled) setErr(friendlyApiMessage(e, t('progress_err'), t))
       }
@@ -116,6 +120,12 @@ export default function ProgressScreen() {
           {t('parent_link_btn')}
         </Link>
       </div>
+      {shortcode ? (
+        <div className="shortcode-section">
+          <p className="shortcode-label">{t('shortcode_label')}</p>
+          <div className="shortcode-display">{shortcode}</div>
+        </div>
+      ) : null}
     </main>
   )
 }

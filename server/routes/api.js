@@ -130,7 +130,10 @@ export function createApiRouter(pool) {
 
   r.get('/me', requireUser, async (req, res) => {
     try {
-      const u = await pool.query(`SELECT id, name, age, grade, created_at FROM users WHERE id = $1`, [req.userId])
+      const u = await pool.query(
+        `SELECT id, name, age, grade, shortcode, created_at FROM users WHERE id = $1`,
+        [req.userId],
+      )
       if (u.rows.length === 0) return res.status(404).json({ error: 'not_found' })
       const states = await pool.query(
         `SELECT t.slug, t.title_ru, t.title_en, t.sort_order, uts.state, uts.correct_streak, uts.total_correct, uts.total_attempts

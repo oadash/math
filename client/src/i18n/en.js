@@ -77,6 +77,7 @@ export default {
   parent_age_suffix: 'years old',
   parent_link_hint: 'Are you a parent?',
   parent_link_btn: '📊 Detailed statistics',
+  shortcode_label: 'Your code to log in from another device',
   intro_title: 'New topic',
   db_error_hint:
     'The site cannot reach the database right now. Ask an adult to check hosting: this service needs DATABASE_URL set.',
