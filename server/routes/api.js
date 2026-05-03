@@ -209,6 +209,7 @@ export function createApiRouter(pool) {
         problem,
         problemToken,
         isFirstIntroduction: picked.isFirstIntroduction,
+        isPeek: picked.isPeek ?? false,
         pinnedTopicSlug,
         topic: {
           slug: picked.topic.slug,
@@ -261,9 +262,14 @@ export function createApiRouter(pool) {
           return res.status(400).json({ error: 'no_state' })
         }
         const was = st.rows[0]
-        const newStreak = correct ? Number(was.correct_streak) + 1 : 0
+        let newStreak = correct ? Number(was.correct_streak) + 1 : 0
         let newState = was.state
-        if (was.state === 'introducing' && correct) newState = 'practicing'
+        if (was.state === 'locked') {
+          newState = 'locked'
+          newStreak = 0
+        } else if (was.state === 'introducing' && correct) {
+          newState = 'practicing'
+        }
 
         await client.query(
           `INSERT INTO answers (user_id, topic_id, problem_json, answer_given, is_correct)

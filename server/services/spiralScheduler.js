@@ -54,8 +54,8 @@ export async function runPromotionRules(pool, userId) {
   )
 
   for (const { topic_id } of practicing2.rows) {
-    const last7 = await lastNAnswersChronological(pool, userId, topic_id, 7)
-    if (last7.length >= 5 && maxConsecutiveCorrect(last7) >= 5) {
+    const last5 = await lastNAnswersChronological(pool, userId, topic_id, 5)
+    if (last5.length >= 3 && maxConsecutiveCorrect(last5) >= 3) {
       await pool.query(
         `UPDATE user_topic_state uts
          SET state = 'introducing'
@@ -80,23 +80,45 @@ async function pickWeightedTopicRow(pool, userId) {
     [userId],
   )
   const rows = r.rows
-  if (rows.length === 0) return null
 
   const weighted = rows.map((row) => ({
     row,
     w: row.state === 'introducing' ? 35 : row.state === 'practicing' ? 60 : 5,
   }))
-  const total = weighted.reduce((s, x) => s + x.w, 0)
+
+  const peekR = await pool.query(
+    `SELECT t.id, t.slug, t.title_ru, t.sort_order
+     FROM topics t
+     JOIN user_topic_state prereq_uts
+       ON prereq_uts.topic_id = t.prerequisite_topic_id
+      AND prereq_uts.user_id = $1
+      AND prereq_uts.state = 'practicing'
+      AND prereq_uts.correct_streak >= 3
+     JOIN user_topic_state this_uts
+       ON this_uts.topic_id = t.id
+      AND this_uts.user_id = $1
+      AND this_uts.state = 'locked'`,
+    [userId],
+  )
+  const peekWeighted = peekR.rows.map((row) => ({
+    row: { ...row, state: 'peeking' },
+    w: 10,
+  }))
+
+  const allWeighted = [...weighted, ...peekWeighted]
+  if (allWeighted.length === 0) return null
+
+  const total = allWeighted.reduce((s, x) => s + x.w, 0)
   let pick = Math.random() * total
-  for (const { row, w } of weighted) {
+  for (const { row, w } of allWeighted) {
     if (pick < w) return row
     pick -= w
   }
-  return weighted[weighted.length - 1].row
+  return allWeighted[allWeighted.length - 1].row
 }
 
 /**
- * @returns {Promise<{ topic: { id: string, slug: string, title_ru: string, state: string, sort_order: number }, isFirstIntroduction: boolean } | null>}
+ * @returns {Promise<{ topic: { id: string, slug: string, title_ru: string, state: string, sort_order: number }, isFirstIntroduction: boolean, isPeek?: boolean } | null>}
  */
 export async function scheduleNextTopic(pool, userId) {
   await runPromotionRules(pool, userId)
@@ -123,6 +145,7 @@ export async function scheduleNextTopic(pool, userId) {
           sort_order: row.sort_order,
         },
         isFirstIntroduction: false,
+        isPeek: false,
       }
     }
     await pool.query(`UPDATE users SET pinned_topic_slug = NULL WHERE id = $1`, [userId])
@@ -130,6 +153,7 @@ export async function scheduleNextTopic(pool, userId) {
 
   const row = await pickWeightedTopicRow(pool, userId)
   if (!row) return null
+  const isPeek = row.state === 'peeking'
   return {
     topic: {
       id: row.id,
@@ -138,6 +162,7 @@ export async function scheduleNextTopic(pool, userId) {
       state: row.state,
       sort_order: row.sort_order,
     },
-    isFirstIntroduction: row.state === 'introducing',
+    isFirstIntroduction: row.state === 'introducing' || isPeek,
+    isPeek,
   }
 }
