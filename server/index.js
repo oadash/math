@@ -1,4 +1,7 @@
 import 'dotenv/config'
+import { existsSync } from 'fs'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
@@ -23,6 +26,11 @@ if (!databaseUrl) {
 }
 
 const pool = databaseUrl ? new Pool(poolOptionsForUrl(databaseUrl)) : null
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const clientDist = join(__dirname, '../client/dist')
+const spaIndexPath = join(clientDist, 'index.html')
+const spaReady = existsSync(spaIndexPath)
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3000
@@ -58,10 +66,6 @@ app.get('/health', (_req, res) => {
     buildCommitFile: readBuildCommitFile(),
     deploy: getDeployInfo(),
   })
-})
-
-app.get('/', (_req, res) => {
-  res.type('text/plain').send('Math Adventure API — /health /health/db')
 })
 
 app.get('/health/db', async (_req, res) => {
@@ -101,10 +105,36 @@ app.get('/health/db', async (_req, res) => {
   }
 })
 
+if (spaReady) {
+  app.use(
+    express.static(clientDist, {
+      index: false,
+      maxAge: process.env.NODE_ENV === 'production' ? '2h' : 0,
+    }),
+  )
+  app.get('*', (req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/health') ||
+      req.path.startsWith('/debug')
+    ) {
+      return next()
+    }
+    res.sendFile(spaIndexPath)
+  })
+} else {
+  app.get('/', (_req, res) => {
+    res
+      .type('text/plain')
+      .send('Math Adventure API — нет client/dist; выполни npm run build в корне монорепо.')
+  })
+}
+
 function start() {
   // Bind port before migrate so Railway health checks don’t SIGTERM a slow/hung DB connect.
   app.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}`)
+    console.log(`[spa] client dist: ${spaReady ? clientDist : 'missing (API only)'}`)
     console.log(
       `[deploy] API_REVISION=${API_REVISION} BUILD_COMMIT.txt=${readBuildCommitFile() ?? 'absent'} env.RAILWAY_GIT_COMMIT_SHA=${process.env.RAILWAY_GIT_COMMIT_SHA ?? 'n/a'}`,
     )
