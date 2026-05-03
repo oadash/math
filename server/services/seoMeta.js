@@ -193,14 +193,9 @@ export function renderLandingPage(lang) {
   const browserLangRedirectScript =
     lang === 'ru'
       ? `<script>
-(function () {
-  var path = window.location.pathname;
-  if (path !== '/') return;
-  var navLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
-  if (navLang.startsWith('en')) {
+  if (navigator.language?.startsWith('en') && window.location.pathname === '/') {
     window.location.replace('/en/');
   }
-})();
 </script>`
       : ''
 
