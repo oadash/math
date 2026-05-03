@@ -1,6 +1,9 @@
+# Dockerfile в корне — Railway собирает образ из него (см. Dockerfile).
 [build]
-builder = "NIXPACKS"
-buildCommand = "npm install && npm run build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "npm run start"
+healthcheckPath = "/health"
+healthcheckTimeout = 120

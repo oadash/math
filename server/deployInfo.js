@@ -1,9 +1,10 @@
 /** Bump when you need to verify Railway serves the latest commit. */
-export const API_REVISION = 'deploy-info-2'
+export const API_REVISION = 'deploy-info-3-docker'
 
 export function getDeployInfo() {
   return {
     revision: API_REVISION,
+    bootTag: process.env.SERVER_BOOT_TAG ?? null,
     railway: {
       serviceName: process.env.RAILWAY_SERVICE_NAME ?? null,
       serviceId: process.env.RAILWAY_SERVICE_ID ?? null,
