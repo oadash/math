@@ -14,7 +14,8 @@ async function lastNAnswersChronological(pool, userId, topicId, n) {
   return r.rows.map((row) => row.is_correct).reverse()
 }
 
-function maxConsecutiveCorrect(oldestFirst) {
+/** Экспорт для тестов: порядок — от старого ответа к новому. */
+export function maxConsecutiveCorrect(oldestFirst) {
   let best = 0
   let cur = 0
   for (const ok of oldestFirst) {
