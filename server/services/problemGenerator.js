@@ -28,11 +28,25 @@ function toSuperscript(n) {
 }
 
 function toSubscript(n) {
-  const map = { 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', 10: '₁₀' }
+  const map = {
+    1: '₁',
+    2: '₂',
+    3: '₃',
+    4: '₄',
+    5: '₅',
+    6: '₆',
+    7: '₇',
+    8: '₈',
+    9: '₉',
+    10: '₁₀',
+  }
   return map[n] ?? `_${n}`
 }
 
-/** 1 correct + 3 wrong: соседи по числовой прямой, допускаются отрицательные. */
+/**
+ * 1 correct + 3 wrong: соседи по числовой прямой.
+ * Для неотрицательного ответа неверные варианты тоже неотрицательны (кроме самого ответа).
+ */
 export function buildChoices(answer) {
   if (!Number.isFinite(answer)) {
     throw new Error('buildChoices: answer must be finite number')
@@ -40,7 +54,9 @@ export function buildChoices(answer) {
   const candidates = []
   for (let d = -4; d <= 4; d++) {
     if (d === 0) continue
-    candidates.push(answer + d)
+    const v = answer + d
+    if (answer >= 0 && v < 0) continue
+    candidates.push(v)
   }
   const wrong = []
   const seen = new Set([answer])
@@ -51,9 +67,10 @@ export function buildChoices(answer) {
       wrong.push(v)
     }
   }
-  let bump = answer + 5
+  let bump = answer >= 0 ? Math.max(answer + 5, 1) : answer + 5
   while (wrong.length < 3) {
     while (seen.has(bump)) bump += answer >= 0 ? 1 : -1
+    if (answer >= 0 && bump < 0) bump = 0
     seen.add(bump)
     wrong.push(bump)
     bump += 1
@@ -85,9 +102,14 @@ const generators = {
     return { display: `${a} + ${b} = ?`, answer: s }
   },
   subtraction_10() {
-    const a = ri(2, 10)
-    const b = ri(1, a - 1)
-    return { display: `${a} − ${b} = ?`, answer: a - b }
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const a = ri(2, 10)
+      const b = ri(1, a - 1)
+      const ans = a - b
+      if (ans === b || ans === a) continue
+      return { display: `${a} − ${b} = ?`, answer: ans }
+    }
+    return { display: `7 − 2 = ?`, answer: 5 }
   },
   addition_100() {
     const a = ri(10, 90)
@@ -97,16 +119,21 @@ const generators = {
     return { display: `${a} + ${b} = ?`, answer: a + b }
   },
   subtraction_20() {
-    const a = ri(5, 20)
-    const b = ri(1, a - 1)
-    return { display: `${a} − ${b} = ?`, answer: a - b }
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const a = ri(5, 20)
+      const b = ri(1, a - 1)
+      const ans = a - b
+      if (ans === b || ans === a) continue
+      return { display: `${a} − ${b} = ?`, answer: ans }
+    }
+    return { display: `15 − 4 = ?`, answer: 11 }
   },
   multiplication_2() {
-    const n = ri(1, 10)
+    const n = ri(2, 10)
     return { display: `${n} × 2 = ?`, answer: n * 2 }
   },
   multiplication_3() {
-    const n = ri(1, 10)
+    const n = ri(2, 10)
     return { display: `${n} × 3 = ?`, answer: n * 3 }
   },
   multiplication_5() {
@@ -114,7 +141,7 @@ const generators = {
     return { display: `${n} × 5 = ?`, answer: n * 5 }
   },
   multiplication_10() {
-    const n = ri(1, 10)
+    const n = ri(2, 10)
     return { display: `${n} × 10 = ?`, answer: n * 10 }
   },
   multiplication_full() {
@@ -123,10 +150,15 @@ const generators = {
     return { display: `${a} × ${b} = ?`, answer: a * b }
   },
   division_simple() {
-    const d = ri(2, 9)
-    const q = ri(2, 9)
-    const n = d * q
-    return { display: `${n} ÷ ${d} = ?`, answer: q }
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const d = ri(2, 9)
+      const q = ri(2, 9)
+      if (q === d) continue
+      const n = d * q
+      if ([n, d].includes(q)) continue
+      return { display: `${n} ÷ ${d} = ?`, answer: q }
+    }
+    return { display: `24 ÷ 4 = ?`, answer: 6 }
   },
   multiplication_big() {
     const a = ri(11, 20)
@@ -174,37 +206,43 @@ const generators = {
     }
   },
   fractions_add_sub() {
-    const d = ri(2, 9)
-    const a = ri(1, d - 1)
-    const b = ri(1, d - a)
-    return {
-      display: `${a}/${d} + ${b}/${d} = ? (числитель)`,
-      answer: a + b,
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const d = ri(2, 9)
+      const a = ri(1, d - 1)
+      const b = ri(1, d - a)
+      const s = a + b
+      if (s === d) continue
+      return {
+        display: `${a}/${d} + ${b}/${d} = ? (числитель)`,
+        answer: s,
+      }
     }
+    return { display: `2/7 + 3/7 = ? (числитель)`, answer: 5 }
   },
   fractions_add_sub_diff() {
-    const k = ri(1, 3)
+    const k = [1, 3][ri(0, 1)]
     return {
       display: `1/2 + ${k}/4 = ? (числитель при знаменателе 4)`,
       answer: 2 + k,
     }
   },
   fractions_multiply() {
-    const n1 = ri(1, 3)
-    const d1 = ri(2, 5)
-    const n2 = ri(1, 3)
-    const d2 = ri(2, 5)
-    const num = n1 * n2
-    const den = d1 * d2
-    const g = gcd(num, den)
-    const n = num / g
-    return {
-      display: `${n1}/${d1} × ${n2}/${d2} = ? (числитель несокращённой дроби)`,
-      answer: num,
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const n1 = ri(1, 3)
+      const d1 = ri(2, 5)
+      const n2 = ri(1, 3)
+      const d2 = ri(2, 5)
+      const num = n1 * n2
+      if ([n1, d1, n2, d2].includes(num)) continue
+      return {
+        display: `${n1}/${d1} × ${n2}/${d2} = ? (числитель несокращённой дроби)`,
+        answer: num,
+      }
     }
+    return { display: `2/3 × 2/3 = ? (числитель несокращённой дроби)`, answer: 4 }
   },
   fractions_divide() {
-    const k = ri(2, 8)
+    const k = ri(3, 8)
     return { display: `1/2 ÷ 1/${2 * k} = ?`, answer: k }
   },
   decimals_basic() {
@@ -216,7 +254,7 @@ const generators = {
     const a = ri(12, 45)
     const b = ri(3, 54)
     return {
-      display: `${(a / 10).toFixed(1)} + ${(b / 10).toFixed(1)} = ? (ответ в десятых: 1.5 → 15)`,
+      display: `${(a / 10).toFixed(1)} + ${(b / 10).toFixed(1)} = ? (сумма в десятых долях, ответ целым без запятой)`,
       answer: a + b,
     }
   },
@@ -230,30 +268,55 @@ const generators = {
     }
   },
   percent_basic() {
-    const percents = [10, 20, 25, 50]
-    const p = percents[ri(0, percents.length - 1)]
-    const base = [100, 200, 80, 40, 60][ri(0, 4)]
-    return { display: `${p}% от ${base} = ?`, answer: Math.round((base * p) / 100) }
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const percents = [10, 20, 25, 50]
+      const p = percents[ri(0, percents.length - 1)]
+      const base = [100, 200, 80, 40, 60][ri(0, 4)]
+      const ans = Math.round((base * p) / 100)
+      if ([p, base].includes(ans)) continue
+      return { display: `${p}% от ${base} = ?`, answer: ans }
+    }
+    return { display: `10% от 250 = ?`, answer: 25 }
   },
   percent_reverse() {
-    const p = [10, 20, 25, 50][ri(0, 3)]
-    const whole = ri(5, 30) * 10
-    const part = Math.round((whole * p) / 100)
-    return { display: `${p}% от какого числа равно ${part}?`, answer: whole }
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const p = [10, 20, 25, 50][ri(0, 3)]
+      const whole = ri(5, 30) * 10
+      const part = Math.round((whole * p) / 100)
+      if (part === 0 || [p, part].includes(whole)) continue
+      return { display: `${p}% от какого числа равно ${part}?`, answer: whole }
+    }
+    return { display: `25% от какого числа равно 40?`, answer: 160 }
   },
   negative_numbers() {
-    const a = ri(-10, -1)
-    const b = ri(1, 10)
-    const type = ri(0, 1)
-    if (type === 0) return { display: `${a} + ${b} = ?`, answer: a + b }
-    return { display: `${b} + (${a}) = ?`, answer: a + b }
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const a = ri(-10, -1)
+      const b = ri(1, 10)
+      const type = ri(0, 1)
+      const ans = a + b
+      if (ans === 0) continue
+      if (type === 0) return { display: `${a} + ${b} = ?`, answer: ans }
+      return { display: `${b} + (${a}) = ?`, answer: ans }
+    }
+    return { display: `-3 + 5 = ?`, answer: 2 }
   },
   integers_add_sub() {
-    const a = ri(-15, 15)
-    const b = ri(-15, 15)
-    const type = ri(0, 1)
-    if (type === 0) return { display: `${a} + (${b}) = ?`, answer: a + b }
-    return { display: `${a} − (${b}) = ?`, answer: a - b }
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const a = ri(-15, 15)
+      const b = ri(-15, 15)
+      const type = ri(0, 1)
+      if (type === 0) {
+        if (b === 0) continue
+        const ans = a + b
+        if (ans === 0 || ans === a || ans === b) continue
+        return { display: `${a} + (${b}) = ?`, answer: ans }
+      }
+      if (b === 0 || a === b) continue
+      const ans = a - b
+      if (ans === 0 || ans === a || ans === b) continue
+      return { display: `${a} − (${b}) = ?`, answer: ans }
+    }
+    return { display: `5 − (2) = ?`, answer: 3 }
   },
   integers_multiply() {
     const signs = [
@@ -287,83 +350,152 @@ const generators = {
     return { display: `√${n} = ?`, answer: Math.sqrt(n) }
   },
   linear_equation_1() {
-    const x = ri(1, 20)
-    const a = ri(1, 15)
-    const b = x + a
-    const type = ri(0, 1)
-    if (type === 0) return { display: `x + ${a} = ${b}, x = ?`, answer: x }
-    return { display: `x − ${a} = ${x - a}, x = ?`, answer: x }
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const x = ri(1, 20)
+      const a = ri(1, 15)
+      if (x === a) continue
+      const b = x + a
+      const type = ri(0, 1)
+      if (type === 0) {
+        if (x === b) continue
+        return { display: `x + ${a} = ${b}, x = ?`, answer: x }
+      }
+      const rhs = x - a
+      if (x === rhs) continue
+      return { display: `x − ${a} = ${rhs}, x = ?`, answer: x }
+    }
+    return { display: `x + 9 = 17, x = ?`, answer: 8 }
   },
   linear_equation_2() {
-    const x = ri(1, 10)
-    const a = ri(2, 5)
-    const b = ri(1, 10)
-    const c = a * x + b
-    return { display: `${a}x + ${b} = ${c}, x = ?`, answer: x }
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const x = ri(1, 10)
+      const a = ri(2, 5)
+      const b = ri(1, 10)
+      const c = a * x + b
+      if ([a, b, c].includes(x)) continue
+      return { display: `${a}x + ${b} = ${c}, x = ?`, answer: x }
+    }
+    return { display: `3x + 2 = 17, x = ?`, answer: 5 }
   },
   linear_equation_3() {
-    const x = ri(1, 8)
-    const a = ri(3, 7)
-    const c = ri(2, a - 1)
-    const coeff = a - c
-    const b = ri(1, 12)
-    const d = coeff * x + b
-    return { display: `${a}x + ${b} = ${c}x + ${d}, x = ?`, answer: x }
+    for (let attempt = 0; attempt < 120; attempt++) {
+      const x = ri(1, 10)
+      const a = ri(2, 6)
+      const c = ri(2, 6)
+      if (a === c) continue
+      const b = ri(1, 10)
+      const d = b + (a - c) * x
+      if (d < 0 || d > 30 || [a, b, c, d].includes(x)) continue
+      return { display: `${a}x + ${b} = ${c}x + ${d}, x = ?`, answer: x }
+    }
+    return generators.linear_equation_3()
   },
   ratio_proportion() {
-    for (let t = 0; t < 50; t++) {
-      const ca = ri(2, 8)
-      const cx = ri(2, 8)
-      const cc = ri(2, 8)
-      const num = ca * cx
-      if (num % cc !== 0) continue
-      const cb = num / cc
-      if (cb < 2 || cb > 20) continue
-      return { display: `${ca}/${cb} = ${cc}/x, x = ?`, answer: cx }
+    const solutions = []
+    for (let aa = 2; aa <= 8; aa++) {
+      for (let bb = 2; bb <= 8; bb++) {
+        for (let cc = 2; cc <= 8; cc++) {
+          const xx = (bb * cc) / aa
+          if (
+            Number.isInteger(xx) &&
+            xx >= 2 &&
+            xx <= 30 &&
+            ![aa, bb, cc].includes(xx)
+          ) {
+            solutions.push({ a: aa, b: bb, c: cc, x: xx })
+          }
+        }
+      }
     }
-    return { display: `2/4 = 3/x, x = ?`, answer: 6 }
+    const s = solutions[ri(0, solutions.length - 1)]
+    return { display: `${s.a}/${s.b} = ${s.c}/x, x = ?`, answer: s.x }
   },
   quadratic_simple() {
-    const r1 = ri(1, 8)
-    const r2 = ri(1, 8)
-    const B = -(r1 + r2)
-    const C = r1 * r2
-    const Babs = Math.abs(B)
-    const mid =
-      B === 0 ? '' : B < 0 ? ` − ${Babs}x` : B > 0 ? ` + ${B}x` : ''
+    const x1 = ri(1, 8)
+    const x2 = ri(x1 + 1, 9)
+    const bCoeff = -(x1 + x2)
+    const cCoeff = x1 * x2
+    if (x1 === Math.abs(bCoeff) || x1 === cCoeff) {
+      return generators.quadratic_simple()
+    }
+    const bStr = bCoeff < 0 ? `${bCoeff}` : `+${bCoeff}`
+    const cStr = cCoeff > 0 ? `+${cCoeff}` : `${cCoeff}`
     return {
-      display: `x²${mid} + ${C} = 0, меньший корень?`,
-      answer: Math.min(r1, r2),
+      display: `x² ${bStr}x ${cStr} = 0, меньший корень?`,
+      answer: x1,
     }
   },
   quadratic_vieta() {
-    const r1 = ri(2, 8)
-    const r2 = ri(3, 9)
+    const x1 = ri(1, 9)
+    const x2 = ri(1, 9)
+    const b = -(x1 + x2)
+    const c = x1 * x2
+    const type = ri(0, 2)
+
+    if (type === 2 && (b === x1 || b === x2)) {
+      return generators.quadratic_vieta()
+    }
+
+    if (type === 0) {
+      const bx = b < 0 ? `${b}x` : `+${b}x`
+      return {
+        display: `x² ${bx} + ? = 0, корни целые положительные. Произведение корней?`,
+        answer: c,
+      }
+    }
+
+    if (type === 1) {
+      if (x1 === x2 || x2 === c) return generators.quadratic_vieta()
+      const bx = b < 0 ? `${b}x` : `+${b}x`
+      return {
+        display: `x² ${bx} + ${c} = 0, один корень = ${x1}. Второй корень?`,
+        answer: x2,
+      }
+    }
+
     return {
-      display: `Корни x² + bx + c = 0 равны ${r1} и ${r2}. Чему равна сумма корней?`,
-      answer: r1 + r2,
+      display: `x² + bx + ${c} = 0, корни ${x1} и ${x2}. Чему равно b?`,
+      answer: b,
     }
   },
   systems_linear_2() {
-    const x = ri(2, 9)
-    const y = ri(2, 9)
-    const s = x + y
-    const d = x - y
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const x = ri(1, 8)
+      const y = ri(1, 8)
+      const a1 = ri(1, 4)
+      const b1 = ri(1, 4)
+      const a2 = ri(1, 4)
+      const b2 = ri(1, 4)
+      const det = a1 * b2 - a2 * b1
+      if (det === 0) continue
+      const c1 = a1 * x + b1 * y
+      const c2 = a2 * x + b2 * y
+      const nums = [a1, b1, c1, a2, b2, c2]
+      if (nums.includes(x) || nums.includes(y)) continue
+      return {
+        display: `${a1}x + ${b1}y = ${c1}\n${a2}x + ${b2}y = ${c2}\nx = ?`,
+        answer: x,
+      }
+    }
     return {
-      display: `x + y = ${s}, x − y = ${d}. Найди x?`,
-      answer: x,
+      display: `2x + 3y = 11\nx + y = 5\nx = ?`,
+      answer: 4,
     }
   },
   inequalities_linear() {
-    const xMax = ri(2, 8)
-    const a = ri(2, 5)
-    const b = ri(0, Math.max(0, a - 2))
-    const rhs = a * (xMax + 1) + b - 1
-    if (a * xMax + b >= rhs) return generators.inequalities_linear()
-    return {
-      display: `${a}x + ${b} < ${rhs}, наибольшее целое x?`,
-      answer: xMax,
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const xMax = ri(2, 8)
+      const a = ri(2, 5)
+      const b = ri(0, Math.max(0, a - 2))
+      const rhs = a * (xMax + 1) + b - 1
+      if (a * xMax + b >= rhs) continue
+      if ([a, b, rhs].includes(xMax)) continue
+      return {
+        display: `${a}x + ${b} < ${rhs}, наибольшее целое x?`,
+        answer: xMax,
+      }
     }
+    return { display: `3x + 1 < 16, наибольшее целое x?`, answer: 4 }
   },
   geometry_area_basic() {
     const shapes = [
@@ -385,13 +517,44 @@ const generators = {
     return shapes[ri(0, shapes.length - 1)]()
   },
   progressions_arithmetic() {
-    const a1 = ri(2, 10)
-    const d = ri(2, 5)
+    const a1 = ri(1, 10)
+    const d = ri(1, 5)
+    const type = ri(0, 2)
+
+    if (type === 0) {
+      const n = ri(5, 10)
+      const an = a1 + (n - 1) * d
+      return {
+        display: `a₁=${a1}, d=${d}. Найди a${toSubscript(n)}?`,
+        answer: an,
+      }
+    }
+
+    if (type === 1) {
+      const n1 = ri(2, 4)
+      const n2 = n1 + ri(2, 4)
+      const an1 = a1 + (n1 - 1) * d
+      const an2 = a1 + (n2 - 1) * d
+      if (
+        d === an1 ||
+        d === an2 ||
+        d === n1 ||
+        d === n2
+      ) {
+        return generators.progressions_arithmetic()
+      }
+      return {
+        display: `a${toSubscript(n1)}=${an1}, a${toSubscript(n2)}=${an2}. Найди d?`,
+        answer: d,
+      }
+    }
+
     const n = ri(4, 8)
-    const an = a1 + d * (n - 1)
+    const sn = Math.round((n / 2) * (2 * a1 + (n - 1) * d))
+    if (sn === a1 || sn === d) return generators.progressions_arithmetic()
     return {
-      display: `Арифметическая прогрессия: a₁=${a1}, d=${d}. Чему равен a${n}?`,
-      answer: an,
+      display: `a₁=${a1}, d=${d}. S${toSubscript(n)} = ?`,
+      answer: sn,
     }
   },
   progressions_geometric() {
@@ -400,7 +563,7 @@ const generators = {
     const n = ri(3, 5)
     const bn = b1 * q ** (n - 1)
     return {
-      display: `Геометрическая прогрессия: b₁=${b1}, q=${q}. Чему равен b${n}?`,
+      display: `Геометрическая прогрессия: b₁=${b1}, q=${q}. Чему равен b${toSubscript(n)}?`,
       answer: bn,
     }
   },
@@ -428,13 +591,21 @@ const generators = {
       [2, 4, 2],
       [2, 8, 3],
       [2, 16, 4],
+      [2, 32, 5],
       [3, 9, 2],
       [3, 27, 3],
+      [3, 81, 4],
       [5, 25, 2],
+      [5, 125, 3],
       [10, 100, 2],
       [10, 1000, 3],
+      [10, 10000, 4],
+      [4, 16, 2],
+      [4, 64, 3],
+      [7, 49, 2],
     ]
-    const [a, b, x] = tbl[ri(0, tbl.length - 1)]
+    const valid = tbl.filter(([aa, bb, xx]) => xx !== aa && xx !== bb)
+    const [a, b, x] = valid[ri(0, valid.length - 1)]
     return { display: `log${toSubscript(a)}(${b}) = ?`, answer: x }
   },
   logarithms_equations() {
@@ -444,7 +615,7 @@ const generators = {
     return { display: `log${toSubscript(base)}(t) = ${x}. Чему равно t?`, answer: rhs }
   },
   exponential_equations() {
-    const exp = ri(2, 6)
+    const exp = ri(3, 6)
     const rhs = 2 ** exp
     return { display: `2^x = ${rhs}, x = ?`, answer: exp }
   },
@@ -467,29 +638,57 @@ const generators = {
     }
   },
   derivatives_basic() {
-    const n = ri(2, 5)
-    const c = ri(1, 4)
+    let c
+    let n
+    do {
+      c = ri(1, 5)
+      n = ri(2, 6)
+    } while (c * n === c || c * n === n || c * n === 0)
+
+    const type = ri(0, 1)
+    if (type === 0) {
+      return {
+        display: `(${c}x${toSuperscript(n)})' — коэффициент при x${toSuperscript(n - 1)}?`,
+        answer: c * n,
+      }
+    }
     return {
-      display: `Производная ${c}x${toSuperscript(n)} — коэффициент при x${toSuperscript(n - 1)}?`,
+      display: `f(x) = ${c}x${toSuperscript(n)}. f'(x) = ?·x${toSuperscript(n - 1)}`,
       answer: c * n,
     }
   },
   combinatorics_basic() {
-    const type = ri(0, 1)
+    const type = ri(0, 2)
+
     if (type === 0) {
-      const n = ri(4, 8)
-      return { display: `Из ${n} человек выбрать 2. Сколько способов?`, answer: (n * (n - 1)) / 2 }
+      const n = ri(4, 9)
+      const answer = (n * (n - 1)) / 2
+      if (answer === n) return generators.combinatorics_basic()
+      return { display: `Из ${n} книг выбрать 2. Сколько способов?`, answer }
     }
-    const n = ri(3, 6)
-    return { display: `${n} человек, 2 места. Сколько вариантов рассадки?`, answer: n * (n - 1) }
+
+    if (type === 1) {
+      const n = ri(3, 7)
+      const answer = n * (n - 1)
+      if (answer === n) return generators.combinatorics_basic()
+      return { display: `${n} картин, 2 места на стене. Сколько вариантов?`, answer }
+    }
+
+    const n = ri(3, 5)
+    const factorials = { 3: 6, 4: 24, 5: 120 }
+    return { display: `${n} флага, сколько разных порядков?`, answer: factorials[n] }
   },
   probability_basic() {
     const cases = [
-      { display: 'Кубик: шанс выпасть чётному (в %)?', answer: 50 },
-      { display: 'Монета: орёл (в %)?', answer: 50 },
-      { display: 'Кубик: шанс выпасть > 4 (в %)?', answer: 33 },
-      { display: 'Кубик: шанс выпасть 1 (в %)?', answer: 17 },
-      { display: '2 монеты: оба орла (в %)?', answer: 25 },
+      { display: 'Кубик 1–6. Шанс выпасть чётному (в %)?', answer: 50 },
+      { display: 'Монета. Шанс выпасть орлу (в %)?', answer: 50 },
+      { display: 'Кубик 1–6. Шанс выпасть > 4 (в %)?', answer: 33 },
+      { display: 'Кубик 1–6. Шанс выпасть числу < 3 (в %)?', answer: 33 },
+      { display: 'Карточки 1–10. Шанс вытащить чётную (в %)?', answer: 50 },
+      { display: 'Из 4 шаров: 1 красный. Шанс вытащить красный (в %)?', answer: 25 },
+      { display: 'Из 5 шаров: 1 синий. Шанс вытащить синий (в %)?', answer: 20 },
+      { display: '2 монеты. Шанс оба орла (в %)?', answer: 25 },
+      { display: '3 монеты. Шанс хотя бы один орёл (в %)?', answer: 88 },
     ]
     return cases[ri(0, cases.length - 1)]
   },
