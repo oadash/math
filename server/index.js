@@ -21,6 +21,8 @@ if (!databaseUrl) {
 const pool = databaseUrl
   ? new Pool({
       connectionString: databaseUrl,
+      max: 10,
+      connectionTimeoutMillis: 15_000,
       ssl:
         process.env.PGSSLMODE === 'require' || process.env.NODE_ENV === 'production'
           ? { rejectUnauthorized: false }
@@ -62,19 +64,21 @@ app.get('/health/db', async (_req, res) => {
   }
 })
 
-async function start() {
-  if (pool) {
-    try {
-      await migrate(pool)
-    } catch (err) {
-      console.error('migrate failed', err)
-      process.exit(1)
-    }
-  }
-
+function start() {
+  // Bind port before migrate so Railway health checks don’t SIGTERM a slow/hung DB connect.
   app.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}`)
+    void runMigrateAfterListen()
   })
+}
+
+async function runMigrateAfterListen() {
+  if (!pool) return
+  try {
+    await migrate(pool)
+  } catch (err) {
+    console.error('migrate failed (HTTP is up; fix DB and redeploy)', err)
+  }
 }
 
 start()
