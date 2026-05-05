@@ -155,6 +155,8 @@ const LANDING_EXTRA_STYLES = `
     .footer-nav a { color: #6c5ce7; font-weight: 700; text-decoration: none; margin-right: 0.75rem; }
     .footer-nav a:hover { text-decoration: underline; }`
 
+const UMAMI_SCRIPT = `<script defer src="https://cloud.umami.is/script.js" data-website-id="442ee583-e6e8-4e45-910e-c59dadb9dc00"></script>`
+
 const practiceExamplesCache = new Map()
 
 /**
@@ -210,6 +212,7 @@ export function renderLandingPage(lang) {
   <meta property="og:title" content="${escapeHtml(docTitle)}">
   <meta property="og:description" content="${escapeHtml(pageDesc)}">
   <meta property="og:type" content="website">
+  ${UMAMI_SCRIPT}
   <script type="application/ld+json">${JSON.stringify(ld)}</script>
   <style>
     ${SEO_LAYOUT_STYLES}
@@ -303,6 +306,7 @@ export function renderTopicsPage(topics, lang) {
   <meta property="og:title" content="${escapeHtml(pageTitle)}">
   <meta property="og:description" content="${escapeHtml(pageDesc)}">
   <meta property="og:type" content="website">
+  ${UMAMI_SCRIPT}
   <style>
     ${SEO_LAYOUT_STYLES}
   </style>
@@ -372,6 +376,7 @@ export function renderPracticePage(topic, lang, generateRu, generateEn) {
   <meta property="og:title" content="${escapeHtml(pageTitle)}">
   <meta property="og:description" content="${escapeHtml(pageDesc)}">
   <meta property="og:type" content="website">
+  ${UMAMI_SCRIPT}
   <script type="application/ld+json">${JSON.stringify(ld)}</script>
   <style>
     ${SEO_LAYOUT_STYLES}

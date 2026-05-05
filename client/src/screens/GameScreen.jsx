@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { track } from '../analytics.js'
 import { api, friendlyApiMessage, getToken, unpinTopic } from '../api.js'
 import IntroCard from '../components/IntroCard.jsx'
 import { useLang, useT } from '../i18n/useT.js'
@@ -73,6 +74,13 @@ export default function GameScreen() {
     loadProblem()
   }, [loadProblem])
 
+  useEffect(() => {
+    const currentTopic = payload?.topic?.slug
+    if (phase === 'problem' && payload?.problem?.id && currentTopic) {
+      track('question_shown', { topic: currentTopic })
+    }
+  }, [payload?.problem?.id, payload?.topic?.slug, phase])
+
   function onIntroContinue() {
     if (!payload?.topic?.slug) return
     sessionStorage.setItem(introSessionKey(payload.topic.slug), '1')
@@ -88,8 +96,10 @@ export default function GameScreen() {
         json: { problemToken: payload.problemToken, answerGiven: choice },
       })
       bumpTodayStreak(res.correct)
+      const currentTopic = payload.topic?.slug
 
       if (res.correct) {
+        track('answer_correct', { topic: currentTopic })
         setBoardClass('board--correct')
         const phrase = pickRandom(t('game_correct'))
         const streak = res.updatedTopicState?.correct_streak ?? 0
@@ -100,6 +110,7 @@ export default function GameScreen() {
           loadProblem()
         }, 900)
       } else {
+        track('answer_wrong', { topic: currentTopic })
         setBoardClass('board--wrong')
         setFeedback({
           correct: false,
